@@ -1,0 +1,34 @@
+{
+  "assets": [
+    {
+      "file": "hero-ana-sayfa-01.jpg",
+      "usage": "hero",
+      "source": "Unsplash",
+      "source_url": "https://unsplash.com/photos/ORNEK-ID-1",
+      "creator": "Örnek Fotoğrafçı Adı",
+      "license": "Unsplash License",
+      "license_checked_at": "2026-09-13",
+      "alt": "Ahşap masa üzerinde altın rengi kolye ve yüzük düzenlemesi"
+    },
+    {
+      "file": "koleksiyon-yaz-kapak.jpg",
+      "usage": "collection_cover",
+      "source": "Pexels",
+      "source_url": "https://www.pexels.com/photo/ORNEK-ID-2/",
+      "creator": null,
+      "license": "Pexels License",
+      "license_checked_at": "2026-09-13",
+      "alt": "Deniz kenarında yaz temalı takı sergileme kompozisyonu"
+    },
+    {
+      "file": "marka-hikayesi-atolye.jpg",
+      "usage": "brand_story",
+      "source": "Adobe Stock",
+      "source_url": "https://stock.adobe.com/images/ORNEK-ID-3",
+      "creator": "Örnek Stüdyo",
+      "license": "Adobe Stock Standard License",
+      "license_checked_at": "2026-09-13",
+      "alt": "Kuyumcu atölyesinde el işçiliğiyle takı üretimini gösteren detay çekimi"
+    }
+  ]
+}
