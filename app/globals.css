@@ -1,0 +1,194 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+/*
+ * Bu dosyadaki renk/tipografi token'ları "Açık Alan" tasarım yönünün
+ * (docs/DESIGN_DIRECTION.md) PLACEHOLDER uygulamasıdır — final marka rengi
+ * ve final font ailesi hâlâ OPEN'dır (docs/OPEN_QUESTIONS.md #1/#2). Marka
+ * kimliği netleşince yalnızca aşağıdaki değerler güncellenir; token adları
+ * ve bunları tüketen component'ler değişmeden kalır.
+ */
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-surface: var(--surface);
+  --color-surface-muted: var(--surface-muted);
+  --font-sans: var(--font-body);
+  --font-display: var(--font-display);
+  --font-body: var(--font-body);
+  --font-utility: var(--font-body);
+  --font-mono: var(--font-geist-mono);
+  --font-heading: var(--font-display);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+:root {
+  /*
+   * "Açık Alan" yönü gereği: sıcak olmayan, soğuk/nötr gri-beyaz taban + yumuşak
+   * antrasit metin; tek, sakin bir CTA tonu (--primary, shadcn Button'ın default
+   * varyantı bunu tüketir) dışında renk vurgusu yok. Hafif soğuk (mavi-gri) his
+   * için oklch hue ~250 kullanıldı; chroma değerleri (0.002-0.03) bilinçli olarak
+   * düşük tutuldu — amaç doygun bir "marka rengi" değil, gümüş/taş ürün
+   * fotoğraflarının önüne geçmeyen, geri planda kalan bir zemin.
+   */
+  --background: oklch(0.99 0.002 250);
+  --foreground: oklch(0.24 0.006 250);
+  --surface: var(--background);
+  --surface-muted: oklch(0.965 0.003 250);
+  --card: var(--background);
+  --card-foreground: var(--foreground);
+  --popover: oklch(1 0 0);
+  --popover-foreground: var(--foreground);
+  --primary: oklch(0.32 0.03 250);
+  --primary-foreground: oklch(0.98 0.003 250);
+  --secondary: var(--surface-muted);
+  --secondary-foreground: var(--foreground);
+  --muted: var(--surface-muted);
+  --muted-foreground: oklch(0.5 0.006 250);
+  --accent: oklch(0.95 0.004 250);
+  --accent-foreground: var(--foreground);
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: oklch(0.9 0.004 250);
+  --input: oklch(0.9 0.004 250);
+  --ring: var(--primary);
+  --chart-1: oklch(0.87 0 0);
+  --chart-2: oklch(0.556 0 0);
+  --chart-3: oklch(0.439 0 0);
+  --chart-4: oklch(0.371 0 0);
+  --chart-5: oklch(0.269 0 0);
+  /*
+   * Editorial minimalizm ("Açık Alan") kasıtlı olarak kısık bir radius ister —
+   * shadcn'in varsayılan 0.625rem'i yerine daha az yuvarlak, daha sakin bir
+   * köşe değeri. Tek bir taban değer (--radius) tüm ölçekleri (sm..4xl) türetir.
+   */
+  --radius: 0.375rem;
+  --sidebar: oklch(0.985 0 0);
+  --sidebar-foreground: oklch(0.145 0 0);
+  --sidebar-primary: oklch(0.205 0 0);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.97 0 0);
+  --sidebar-accent-foreground: oklch(0.205 0 0);
+  --sidebar-border: oklch(0.922 0 0);
+  --sidebar-ring: oklch(0.708 0 0);
+}
+
+/*
+ * Bu blok değiştirilmedi — shadcn'in varsayılan koyu tema tanımıdır. "Açık Alan"
+ * tasarım yönü bir dark mode/tema geçişi öngörmüyor (MVP kapsamında toggle yok);
+ * bu blok ileride bir koyu tema ihtiyacı doğarsa ayrıca ele alınmalı. --surface/
+ * --surface-muted şu an yalnızca light tema için tanımlıdır.
+ */
+.dark {
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.205 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.922 0 0);
+  --primary-foreground: oklch(0.205 0 0);
+  --secondary: oklch(0.269 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --accent: oklch(0.269 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.556 0 0);
+  --chart-1: oklch(0.87 0 0);
+  --chart-2: oklch(0.556 0 0);
+  --chart-3: oklch(0.439 0 0);
+  --chart-4: oklch(0.371 0 0);
+  --chart-5: oklch(0.269 0 0);
+  --sidebar: oklch(0.205 0 0);
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.488 0.243 264.376);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.269 0 0);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: oklch(0.556 0 0);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  html {
+    @apply font-sans;
+  }
+}
+
+/*
+ * Motion ilkesi ("Açık Alan", docs/DESIGN_DIRECTION.md — MOTION APPROACH):
+ * sayfa başına yalnızca TEK, yumuşak, tekrarlanmayan scroll-triggered fade-in;
+ * ürünün önüne geçen dekoratif animasyon yok. Bu utility yalnızca geçiş
+ * tanımını sağlar — tetikleme (ör. IntersectionObserver ile "is-visible"
+ * class'ının eklenmesi) component seviyesinde storefront tarafından yapılır,
+ * burada component kodu yazılmaz.
+ */
+@layer utilities {
+  .motion-reveal-once {
+    opacity: 0;
+    transform: translateY(0.5rem);
+    transition:
+      opacity 0.6s ease-out,
+      transform 0.6s ease-out;
+  }
+
+  .motion-reveal-once.is-visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .motion-reveal-once {
+    transition: none;
+    transform: none;
+  }
+}

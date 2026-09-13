@@ -1,0 +1,14 @@
+<svg width="800" height="800" viewBox="0 0 800 800" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Örnek ürün — gerçek ürün fotoğrafı değil, geliştirme placeholder'ı">
+  <!-- DEVELOPMENT PLACEHOLDER — gerçek ürün fotoğrafı değildir. Bu proje AI ile görsel üretmez (D011);
+       bu dosya elle çizilmiş, soyut/nötr bir vektör placeholder'dır ve satılan gerçek bir ürünü temsil etmez (D012). -->
+  <rect width="800" height="800" fill="#F2F1EE"/>
+  <circle cx="400" cy="340" r="150" stroke="#8A8578" stroke-width="3" fill="none"/>
+  <circle cx="400" cy="340" r="150" stroke="#8A8578" stroke-width="3" fill="none" transform="rotate(20 400 340)" opacity="0.35"/>
+  <path d="M400 190 L420 250 L400 240 L380 250 Z" fill="#8A8578" opacity="0.6"/>
+  <text x="400" y="600" text-anchor="middle" font-family="ui-sans-serif, system-ui, sans-serif" font-size="22" fill="#6B675E" letter-spacing="2">
+    ÖRNEK ÜRÜN — DEMO GÖRSEL
+  </text>
+  <text x="400" y="634" text-anchor="middle" font-family="ui-sans-serif, system-ui, sans-serif" font-size="15" fill="#9A968B" letter-spacing="1">
+    Gerçek ürün fotoğrafı değildir
+  </text>
+</svg>
