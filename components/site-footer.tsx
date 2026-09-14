@@ -1,5 +1,5 @@
 import Link from "next/link"
-import { getAllCategories } from "@/lib/catalog"
+import { getCategories } from "@/lib/commerce/catalog"
 
 /**
  * `docs/COMPONENT_INVENTORY.md` #7'nin footer kısmı. İletişim, Kargo ve
@@ -18,8 +18,17 @@ const LEGAL_PAGES_PENDING = [
   "Mesafeli Satış Sözleşmesi",
 ]
 
-function SiteFooter() {
-  const categories = getAllCategories()
+async function SiteFooter() {
+  // Footer TÜM sayfaların (root layout) parçası — kategori sorgusu geçici
+  // olarak başarısız olsa bile (DB kesintisi vb.) bütün site 500 vermemeli.
+  // Bu, yalnızca yardımcı bir navigasyon listesi; sessizce boş dizi ile
+  // devam etmek, kritik olmayan bir footer linki için makul bir bozulma
+  // (graceful degradation), ana içerik sayfalarındaki (`ProductGrid` →
+  // `EmptyState`) hata/boş durum ele alışıyla aynı ilkeyi paylaşıyor.
+  const categories = await getCategories().catch((error) => {
+    console.error("SiteFooter: getCategories() başarısız oldu", error)
+    return []
+  })
 
   return (
     <footer className="border-t border-border">

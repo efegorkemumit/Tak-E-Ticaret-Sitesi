@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react"
 import Image from "next/image"
 import { cn } from "cn"
-import type { ProductImage } from "@/lib/catalog"
+import type { DisplayImage } from "@/lib/placeholder-image"
 
 /**
  * `docs/COMPONENT_INVENTORY.md` #3 — tek sütun, büyük görsel, sıralı akış.
@@ -11,8 +11,13 @@ import type { ProductImage } from "@/lib/catalog"
  * mobilde native swipe); JS yalnızca aktif nokta göstergesini güncellemek ve
  * noktaya tıklanınca ilgili görsele kaydırmak için kullanılır ("galeri
  * kontrolleri" — bu yüzden client component).
+ *
+ * `images`, `product.images`'tan (gerçek `ProductImage` modeli — bkz.
+ * `lib/commerce/catalog.ts`) veya ürünün hiç görseli yoksa tek elemanlı bir
+ * yerel placeholder dizisinden (`lib/placeholder-image.ts`) gelir; ikisi de
+ * aynı `{ url, alt, isPlaceholder }` şeklini paylaşır.
  */
-function ProductGallery({ images, productName }: { images: ProductImage[]; productName: string }) {
+function ProductGallery({ images, productName }: { images: DisplayImage[]; productName: string }) {
   const containerRef = useRef<HTMLDivElement>(null)
   const slideRefs = useRef<(HTMLDivElement | null)[]>([])
   const [activeIndex, setActiveIndex] = useState(0)
@@ -51,14 +56,14 @@ function ProductGallery({ images, productName }: { images: ProductImage[]; produ
           >
             <Image
               src={image.url}
-              alt={productName}
+              alt={image.alt || productName}
               fill
               sizes="(min-width: 1024px) 50vw, 100vw"
               className="object-cover"
               priority={index === 0}
               unoptimized={image.url.endsWith(".svg")}
             />
-            {!image.isRealProductPhoto && (
+            {image.isPlaceholder && (
               <span className="absolute left-3 top-3 rounded-full bg-background/90 px-2 py-0.5 text-[0.7rem] text-muted-foreground">
                 Örnek görsel
               </span>

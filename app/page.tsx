@@ -5,18 +5,26 @@ import { EditorialAsymmetricBlock } from "@/components/editorial/editorial-asymm
 import { FeaturedCollectionSection } from "@/components/editorial/featured-collection-section"
 import { ProductGrid } from "@/components/product/product-grid"
 import {
-  getAllCategories,
-  getAllCollections,
-  getAllProducts,
+  getCategories,
+  getCollections,
   getProductsByCollectionSlug,
-} from "@/lib/catalog"
+  getPublishedProducts,
+} from "@/lib/commerce/catalog"
+import { PLACEHOLDER_IMAGE_URL } from "@/lib/placeholder-image"
 
-const PLACEHOLDER_IMAGE_URL = "/fixtures/placeholder-jewelry.svg"
+// Katalog gerçek DB'den geliyor, build-time'da dondurulamaz.
+export const dynamic = "force-dynamic"
 
-export default function HomePage() {
-  const collections = getAllCollections()
-  const categories = getAllCategories()
-  const showcaseProducts = getAllProducts().slice(0, 4)
+export default async function HomePage() {
+  const [collections, categories, allProducts] = await Promise.all([
+    getCollections(),
+    getCategories(),
+    getPublishedProducts(),
+  ])
+  const showcaseProducts = allProducts.slice(0, 4)
+  const collectionProductLists = await Promise.all(
+    collections.map((collection) => getProductsByCollectionSlug(collection.slug))
+  )
 
   return (
     <div className="flex flex-col gap-20 pb-20">
@@ -69,11 +77,11 @@ export default function HomePage() {
         </section>
 
         {/* Koleksiyon tanıtım bölümleri (#18 FeaturedCollectionSection) */}
-        {collections.map((collection) => (
+        {collections.map((collection, index) => (
           <FeaturedCollectionSection
             key={collection.slug}
             collection={collection}
-            products={getProductsByCollectionSlug(collection.slug)}
+            products={collectionProductLists[index]}
           />
         ))}
 

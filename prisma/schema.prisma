@@ -11,3 +11,434 @@ generator client {
 datasource db {
   provider = "postgresql"
 }
+
+// =============================================================================
+// COMMERCE DOMAIN — Takı E-Ticaret Sitesi
+// =============================================================================
+//
+// Bu şema, VIDEO 06 turunda proje sahibi tarafından onaylanan D018-D023
+// kararlarının birebir uygulamasıdır. Kesin doğruluk kaynağı her zaman
+// `docs/DECISIONS.md`'dir; burada çelişki görülürse orası esastır.
+//
+// Hâlâ OPEN olan konular (bu şema tarafından kilitlenmez):
+// - Kesin ürün kategorileri listesi (`docs/OPEN_QUESTIONS.md` #3) — Category
+//   tablosu var, ama gerçek kategori satırları burada girilmez.
+// - Hangi öznitelik tiplerinin (materyal/renk/taş türü/ölçü/...) gerçekten
+//   kullanılacağı (#4) — AttributeDefinition.key bilinçli olarak serbest bir
+//   String'tir, Prisma enum'una veya sabit kolona GÖMÜLMEZ.
+// - Shopier teknik entegrasyon yöntemi (#9, D009/D010) — bu şema yalnızca
+//   sağlayıcıdan bağımsız `paymentMethod`/`paymentStatus` alanlarını taşır,
+//   hiçbir Shopier'e özgü alan içermez.
+// - Sipariş sorgulama doğrulama alanının kesin şekli (#12, D015).
+// - Kargo ücreti/ücretsiz kargo sınırı (#5/#6/#7) — Order'da ayrı bir kargo
+//   ücreti alanı bilinçli olarak yok, yalnızca `subtotal`/`total` var.
+// - Hediye paketinin ücretlendirme etkisi (PROJECT_BRIEF Bölüm 10) —
+//   `giftPackagingSelected` yalnızca seçimi taşır, ücret alanı yok.
+//
+// Bu turda YAZILMAYAN şeyler (bilinçli sınır, `docs/DEVELOPMENT_PLAN.md`
+// Checkout/Payments fazlarının konusu): API route, cart/checkout servis kodu,
+// stok düşme/rezervasyon transaction kodu, rezervasyon süresi dolunca çalışan
+// scheduler/cron, Shopier/ödeme entegrasyon kodu, admin CRUD kodu.
+
+// -----------------------------------------------------------------------------
+// Enum'lar
+// -----------------------------------------------------------------------------
+
+/// Ürünün yayın durumu — stok durumundan tamamen bağımsızdır (D021).
+/// PUBLISHED + stok=0 → ürün görünür kalır, "Tükendi" gösterilir, otomatik
+/// gizlenmez. DRAFT/ARCHIVED → storefront'ta hiç görünmez.
+enum ProductStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+/// D006 ile sınırlı — yalnızca bu iki yöntem, yeni bir yöntem eklenmez.
+enum PaymentMethod {
+  SHOPIER
+  BANK_TRANSFER
+}
+
+/// Payments'ın ürettiği jenerik ödeme sonucu (bkz. `docs/ARCHITECTURE.md` §4.3).
+/// Shopier'e özgü hiçbir durum adı yok (D010). `Order.orderStatus`'tan
+/// KASITLI OLARAK ayrı bir alandır — ikisi asla birbirinin yerine geçmez
+/// (bkz. `docs/ARCHITECTURE.md` §3).
+enum PaymentStatus {
+  PENDING
+  CONFIRMED
+  FAILED
+}
+
+/// Commerce'in sahiplendiği sipariş durumu (bkz. `docs/ARCHITECTURE.md` §3,
+/// `docs/PROJECT_BRIEF.md` Bölüm 11). Payments bu alana asla doğrudan yazmaz.
+/// D018 gereği havale bekleme süresi dolduğunda sipariş de bu listedeki
+/// mevcut CANCELLED durumuna geçer — ayrı bir "süresi doldu" durumu
+/// uydurulmadı.
+enum OrderStatus {
+  PAYMENT_PENDING
+  PREPARING
+  SHIPPED
+  DELIVERED
+  CANCELLED
+  RETURNED
+}
+
+/// D018 — sipariş oluşturulduğu anda oluşturulan stok rezervasyonunun durumu.
+/// ACTIVE: rezervasyon hâlâ geçerli, stok bu miktar kadar "kilitli" sayılır.
+/// RELEASED: süre doldu veya sipariş iptal oldu, stok serbest bırakıldı.
+/// CONSUMED: ödeme onaylandı, rezervasyon kalıcı bir stok düşümüne dönüştü.
+/// (Bu turda yalnızca şema/foundation — geçiş mantığı/scheduler kodu YOK.)
+enum ReservationStatus {
+  ACTIVE
+  RELEASED
+  CONSUMED
+}
+
+// -----------------------------------------------------------------------------
+// Category / Collection (D023 — Category tekil, Collection çoktan-çoğa)
+// -----------------------------------------------------------------------------
+
+model Category {
+  id          String    @id @default(cuid())
+  name        String
+  slug        String    @unique
+  /// Kategori sayfası alt başlığı için kısa açıklama (opsiyonel).
+  description String?
+  products    Product[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model Collection {
+  id          String              @id @default(cuid())
+  name        String
+  slug        String              @unique
+  /// Koleksiyon sayfası alt başlığı için kısa açıklama (opsiyonel).
+  description String?
+  products    ProductCollection[]
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+}
+
+/// D023 — Product↔Collection çoktan-çoğa ilişkisinin explicit join modeli.
+/// Bilinçli olarak minimal: editorial/grid/"span" gibi UI'a özgü alanlar
+/// buraya KONMAZ (bkz. `docs/DESIGN_DIRECTION.md` — bu ihtiyaç iptal edildi).
+model ProductCollection {
+  productId    String
+  collectionId String
+  product      Product    @relation(fields: [productId], references: [id], onDelete: Cascade)
+  collection   Collection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+  createdAt    DateTime   @default(now())
+
+  @@id([productId, collectionId])
+}
+
+// -----------------------------------------------------------------------------
+// Product / Variant (D019 — SKU/fiyat/stok yalnızca Variant seviyesinde)
+// -----------------------------------------------------------------------------
+
+model Product {
+  id          String        @id @default(cuid())
+  name        String
+  slug        String        @unique
+  description String?
+  status      ProductStatus @default(DRAFT)
+
+  /// Ürün bakım bilgisi metni (PROJECT_BRIEF Bölüm 10 — MVP kapsamındaki
+  /// ürün önitelik listesinin bir parçası, Step 2'de gözden kaçmıştı).
+  /// Genel/jenerik bir metindir, ürüne özgü doğrulanmamış bir iddia
+  /// TAŞIMAMALIDIR (bkz. `jewelry-commerce` skill'i).
+  careInfo String?
+
+  /// Hediye paketi seçeneğinin bu ürün için sunulup sunulmadığı
+  /// (PROJECT_BRIEF Bölüm 10). Yalnızca seçeneğin VARLIĞINI taşır —
+  /// ücretlendirme/checkout mantığı hâlâ OPEN, burada YOKTUR (bkz. Order'daki
+  /// `giftPackagingSelected` alanının aynı sınırı).
+  giftPackagingAvailable Boolean @default(false)
+
+  categoryId String
+  category   Category @relation(fields: [categoryId], references: [id])
+
+  collections ProductCollection[]
+  variants    Variant[]
+  images      ProductImage[]
+
+  /// Ürünün açıklayıcı/spesifikasyon öznitelikleri (D020) — ör. "Zirkon +
+  /// İnci" gibi, TEK bir varyant seçimi olmayan ama üründe fiziksel olarak
+  /// bulunan bilgiler. Aynı AttributeDefinition için birden fazla satır
+  /// OLABİLİR (bilinçli olarak unique constraint YOK) — bu, Variant seçim
+  /// özniteliğinden (aşağıda) en kritik yapısal farktır.
+  descriptiveAttributes ProductAttributeValue[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([categoryId])
+  @@index([status])
+}
+
+/// Ürün görseli (D012/D013 görsel politikasıyla doğrudan ilgili — Step 2'de
+/// hiç modellenmemişti, storefront'un bulduğu gerçek bir eksiklik).
+/// `isPlaceholder: true` olan bir görsel HİÇBİR ZAMAN "satılan ürünün gerçek
+/// fotoğrafı" gibi sunulmamalıdır (D012) — storefront'un "Örnek görsel"
+/// rozeti bu bayrağa bağlanır. Gerçek ürün fotoğrafları eklendiğinde o
+/// satırlar `isPlaceholder: false` ile girilir; şema/model DEĞİŞMEZ.
+model ProductImage {
+  id        String  @id @default(cuid())
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  url String
+  /// Erişilebilirlik metni (`<img alt>`).
+  alt String
+
+  isPlaceholder Boolean @default(true)
+
+  /// Galeri sırası — küçükten büyüğe, 0 ilk gösterilen görsel.
+  sortOrder Int @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  /// Bir üründe aynı galeri konumunda (sortOrder) iki görsel olamaz — hem
+  /// mantıklı bir iş kuralı hem de seed/admin tarafında idempotent
+  /// upsert'i mümkün kılan doğal bir anahtar.
+  @@unique([productId, sortOrder])
+}
+
+/// D019 — gerçek satılabilir birim. Her Product en az bir Variant'a sahip
+/// olmak zorundadır (varyantsız görünen ürünler tek bir default Variant ile
+/// temsil edilir); bu kural şemada zorlanamaz (Prisma bir "en az 1 ilişkili
+/// kayıt" constraint'i sunmaz), admin ürün oluşturma iş mantığında
+/// (bu turun kapsamı dışında) uygulanmalıdır.
+model Variant {
+  id        String  @id @default(cuid())
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  sku String @unique
+
+  /// Decimal — asla Float değil (para birimi hassasiyeti için). Para birimi
+  /// proje genelinde sabit TRY (D003); Variant'a ayrı bir currency alanı
+  /// eklenmedi, gerekirse `Order.currency` seviyesinde tutulur.
+  price Decimal @db.Decimal(10, 2)
+
+  /// Gerçek/ham stok adedi. Rezervasyon miktarı ayrıca `InventoryReservation`
+  /// üzerinde tutulur — "kullanılabilir stok" (mevcut - aktif rezervasyon)
+  /// hesaplaması bu turun kapsamı dışındaki iş mantığı katmanına aittir.
+  stockQuantity Int @default(0)
+
+  /// D020 — bu varyantın seçilebilir öznitelik kombinasyonu. Bir
+  /// AttributeDefinition için en fazla bir değer alabilir; bu, `@@id`
+  /// bileşik anahtarıyla DB seviyesinde garanti edilir (bkz.
+  /// VariantAttributeValue).
+  attributeValues VariantAttributeValue[]
+
+  orderItems   OrderItem[]
+  reservations InventoryReservation[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([productId])
+}
+
+// -----------------------------------------------------------------------------
+// Esnek öznitelik modeli (D020) — OPEN #4'ü kilitlemez
+// -----------------------------------------------------------------------------
+
+/// Bir öznitelik TİPİ (ör. "materyal", "renk", "tasTuru", "beden",
+/// "zincirUzunlugu", "kaplama"). `key` bilinçli olarak serbest bir String'tir
+/// (Prisma enum DEĞİL) — yeni bir öznitelik tipi eklemek bir migration değil,
+/// yalnızca yeni bir satır eklemektir; bu, hangi özniteliklerin gerçekten
+/// kullanılacağının hâlâ OPEN olmasıyla (#4) tutarlıdır.
+model AttributeDefinition {
+  id    String @id @default(cuid())
+  key   String @unique
+  label String
+
+  values              AttributeValue[]
+  variantSelections   VariantAttributeValue[]
+  productDescriptions ProductAttributeValue[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+/// Bir öznitelik tipi için mümkün somut DEĞER (ör. "Gümüş", "Zirkon", "16").
+/// Aynı definition için aynı value tekrar edilmez (`@@unique`), ama bu değer
+/// hem Variant seçimlerinde hem Product açıklamalarında (aşağıya bkz.)
+/// tekrar kullanılabilir.
+model AttributeValue {
+  id                    String              @id @default(cuid())
+  attributeDefinitionId String
+  attributeDefinition   AttributeDefinition @relation(fields: [attributeDefinitionId], references: [id], onDelete: Cascade)
+  value                 String
+
+  variantSelections   VariantAttributeValue[]
+  productDescriptions ProductAttributeValue[]
+
+  createdAt DateTime @default(now())
+
+  @@unique([attributeDefinitionId, value])
+}
+
+/// Varyantın SEÇİLEBİLİR özniteliği (D020). `@@id` bileşik anahtarı, bir
+/// Variant'ın aynı AttributeDefinition için yalnızca TEK bir değeri
+/// olabileceğini DB seviyesinde garanti eder — yalnızca kod disipliniyle
+/// değil, constraint ile.
+model VariantAttributeValue {
+  variantId String
+  variant   Variant @relation(fields: [variantId], references: [id], onDelete: Cascade)
+
+  attributeDefinitionId String
+  attributeDefinition   AttributeDefinition @relation(fields: [attributeDefinitionId], references: [id])
+
+  attributeValueId String
+  attributeValue   AttributeValue @relation(fields: [attributeValueId], references: [id])
+
+  @@id([variantId, attributeDefinitionId])
+  @@index([attributeValueId])
+}
+
+/// Ürünün AÇIKLAYICI/spesifikasyon özniteliği (D020) — ör. bir kolyenin hem
+/// "Zirkon" hem "İnci" taşıyla fiziksel olarak var olması. Bilinçli olarak
+/// (variantId, attributeDefinitionId) türünde bir tekillik kısıtı YOKTUR —
+/// aynı definition için birden fazla satır izinlidir; bu, VariantAttributeValue'dan
+/// en kritik yapısal farktır (D020'nin doğrudan uygulanışı).
+model ProductAttributeValue {
+  id        String  @id @default(cuid())
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  attributeDefinitionId String
+  attributeDefinition   AttributeDefinition @relation(fields: [attributeDefinitionId], references: [id])
+
+  attributeValueId String
+  attributeValue   AttributeValue @relation(fields: [attributeValueId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@index([productId])
+  @@index([attributeDefinitionId])
+}
+
+// -----------------------------------------------------------------------------
+// Order / OrderItem (Order ownership tamamen commerce'te kalır — payments
+// Order.orderStatus'a asla doğrudan yazmaz, bkz. `docs/ARCHITECTURE.md` §3)
+// -----------------------------------------------------------------------------
+
+model Order {
+  id String @id @default(cuid())
+
+  /// İnsana dönük sipariş numarası (havale açıklaması, olası manuel Shopier
+  /// eşleştirmesi için) — sistemsel eşleştirme için DEĞİL, bkz. `id`.
+  orderNumber String @unique
+
+  /// D017 idempotency ilkesinin DB-seviyesi garantisi — storefront'un
+  /// checkout mount anında ürettiği anahtar; aynı key ile ikinci istek yeni
+  /// Order açmaz (bkz. `docs/ARCHITECTURE.md` §6).
+  orderIdempotencyKey String @unique
+
+  // Checkout anındaki iletişim/teslimat bilgisinin SNAPSHOT'ı — müşteri
+  // hesabı olmadığı için (D004) bu veriler yalnızca Order üzerinde yaşar.
+  contactFullName String
+  contactPhone    String
+  contactEmail    String
+
+  deliveryAddressLine String
+  deliveryCity        String
+  deliveryDistrict    String
+  deliveryPostalCode  String
+  /// Sabit "TR" — D001. Ayrı bir ülke seçici/validasyonu bu turun kapsamında değil.
+  deliveryCountry     String @default("TR")
+
+  /// Yalnızca seçimi taşır; ücretlendirme mantığı yok (hediye paketinin
+  /// checkout etkisi hâlâ OPEN, `docs/PROJECT_BRIEF.md` Bölüm 10).
+  giftPackagingSelected Boolean @default(false)
+
+  paymentMethod PaymentMethod
+  /// Payments'tan gelen jenerik sinyal — Order'ın kendi orderStatus'undan
+  /// KASITLI OLARAK ayrı (bkz. `docs/ARCHITECTURE.md` §3, §7).
+  paymentStatus PaymentStatus @default(PENDING)
+  orderStatus   OrderStatus   @default(PAYMENT_PENDING)
+
+  /// Sabit "TRY" (D003). Çoklu para birimi MVP dışı (D014).
+  currency String @default("TRY")
+
+  /// Server-side yeniden hesaplanan tutarlar (D022) — client'tan gelen hiçbir
+  /// fiyat/toplam alanı burada doğrudan kullanılmaz.
+  subtotal Decimal @db.Decimal(10, 2)
+  total    Decimal @db.Decimal(10, 2)
+
+  items        OrderItem[]
+  reservations InventoryReservation[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([orderStatus])
+  @@index([paymentStatus])
+}
+
+/// Sipariş anındaki veriyi SNAPSHOT olarak taşır — ürün adı/fiyatı sonradan
+/// değişse bile geçmiş siparişler bozulmaz (D017/D022 tutarlılığı).
+model OrderItem {
+  id      String @id @default(cuid())
+  orderId String
+  order   Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  /// Variant'a referans — asıl "gerçeklik" (fiyat/isim) her zaman aşağıdaki
+  /// snapshot alanlarındadır, Variant sonradan değişirse bu satır değişmez.
+  variantId String
+  variant   Variant @relation(fields: [variantId], references: [id])
+
+  skuSnapshot                String
+  productNameSnapshot        String
+  /// İnsan-okunabilir varyant/öznitelik özeti snapshot'ı (ör. "Gümüş,
+  /// Zirkon, Beden 16"). Bilinçli olarak düz String — ayrı bir JSON/EAV
+  /// snapshot şeması bu turda over-engineering olur.
+  variantDescriptionSnapshot String
+
+  unitPriceSnapshot Decimal @db.Decimal(10, 2)
+  quantity          Int
+  lineTotal         Decimal @db.Decimal(10, 2)
+
+  createdAt DateTime @default(now())
+
+  @@index([orderId])
+  @@index([variantId])
+}
+
+// -----------------------------------------------------------------------------
+// InventoryReservation (D018) — yalnızca şema/foundation, scheduler/cron YOK
+// -----------------------------------------------------------------------------
+
+/// D018 — sipariş oluşturulduğu anda (ödeme onaylanmadan) oluşturulan stok
+/// rezervasyonu. `expiresAt` varsayılan olarak oluşturma anından 24 saat
+/// sonrasıdır (havale bekleme süresi — panelden değiştirilebilir olacağı
+/// D018'de belirtilmiştir, ama panel/ayar arayüzü bu turun kapsamı dışında).
+/// Sağlayıcıdan bağımsızdır — hem Shopier hem Havale/EFT siparişi aynı
+/// rezervasyon mekanizmasını kullanır.
+model InventoryReservation {
+  id String @id @default(cuid())
+
+  variantId String
+  variant   Variant @relation(fields: [variantId], references: [id])
+
+  orderId String
+  order   Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  quantity Int
+  status   ReservationStatus @default(ACTIVE)
+
+  expiresAt  DateTime
+  releasedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([variantId, status])
+  @@index([orderId])
+  @@index([expiresAt])
+}

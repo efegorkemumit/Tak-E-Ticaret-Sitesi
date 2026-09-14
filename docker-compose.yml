@@ -1,0 +1,42 @@
+# YALNIZCA LOCAL DEVELOPMENT İÇİNDİR — PRODUCTION DEĞİLDİR.
+#
+# Bu dosyadaki kullanıcı adı/şifre bilinçli olarak basit, herkese açık
+# development değerleridir; gerçek bir kimlik bilgisi DEĞİLDİR ve hiçbir zaman
+# production'da kullanılmamalıdır (bkz. `docs/PROJECT_BRIEF.md` Bölüm 16 —
+# gerçek secret'lar repoya girmez, yalnızca ortam değişkeni olarak tutulur).
+#
+# PORT NOTU: Standart 5432 portu bu geliştirme makinesinde BAŞKA bir projenin
+# çalışan container'ı tarafından kullanıldığı için, bu proje 5435'e bağlanır.
+# `.env` içindeki DATABASE_URL de bu portu gösterir.
+#
+# Kullanım:
+#   docker compose up -d        → veritabanını başlat
+#   docker compose ps           → sağlık durumunu gör
+#   docker compose down         → durdur (veri korunur, volume silinmez)
+#   docker compose down -v      → durdur VE tüm veriyi sil (dikkat)
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: jewelry-store-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      # LOCAL DEVELOPMENT ŞİFRESİ — gerçek bir secret değildir.
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: jewelry_store
+    ports:
+      - "5435:5432"
+    volumes:
+      - jewelry-store-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d jewelry_store"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+volumes:
+  # Kalıcı volume — container yeniden başlatıldığında/silindiğinde veri korunur.
+  jewelry-store-pgdata:
+    name: jewelry-store-pgdata

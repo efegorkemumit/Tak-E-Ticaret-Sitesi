@@ -4,37 +4,37 @@ import { Breadcrumb } from "@/components/ui/breadcrumb"
 import { ProductGallery } from "@/components/product/product-gallery"
 import { ProductPurchasePanel } from "@/components/product/product-purchase-panel"
 import { ProductInfoAccordion } from "@/components/product/product-info-accordion"
-import {
-  getAllProducts,
-  getCategoryBySlug,
-  getConstantAttributes,
-  getProductBySlug,
-} from "@/lib/catalog"
+import { getCategoryBySlug, getProductBySlug } from "@/lib/commerce/catalog"
+import { getPlaceholderImage } from "@/lib/placeholder-image"
 
-export function generateStaticParams() {
-  return getAllProducts().map((product) => ({ slug: product.slug }))
-}
+// Gerçek DB'den okunan bir katalog build-time'da bilinemez/statik
+// dondurulamaz (admin ürün ekleyip durumunu değiştirebilir, D021 PUBLISHED/
+// DRAFT/ARCHIVED ayrımı canlı olmalı) — bu yüzden `generateStaticParams`
+// kullanılmıyor, sayfa her istekte sunucuda render edilir.
+export const dynamic = "force-dynamic"
 
 export async function generateMetadata(
   { params }: PageProps<"/urun/[slug]">
 ): Promise<Metadata> {
   const { slug } = await params
-  const product = getProductBySlug(slug)
+  const product = await getProductBySlug(slug)
   if (!product) return {}
   return {
     title: product.name,
-    description: product.careInfo,
+    description: product.description ?? undefined,
   }
 }
 
 export default async function ProductDetailPage({ params }: PageProps<"/urun/[slug]">) {
   const { slug } = await params
-  const product = getProductBySlug(slug)
+  const product = await getProductBySlug(slug)
   if (!product) notFound()
 
-  const primaryCategorySlug = product.categories[0]
-  const category = primaryCategorySlug ? getCategoryBySlug(primaryCategorySlug) : undefined
-  const constantAttributes = getConstantAttributes(product)
+  const category = await getCategoryBySlug(product.categorySlug)
+  // Ürünün hiç görseli yoksa (henüz fotoğraf yüklenmemiş) yerel placeholder'a
+  // düşülür; `ProductGallery` her iki durumda da aynı `isPlaceholder` rozet
+  // mantığını kullanır.
+  const images = product.images.length > 0 ? product.images : [getPlaceholderImage(product.name)]
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
@@ -49,7 +49,7 @@ export default async function ProductDetailPage({ params }: PageProps<"/urun/[sl
       />
 
       <div className="grid gap-10 lg:grid-cols-2 lg:gap-16">
-        <ProductGallery images={product.images} productName={product.name} />
+        <ProductGallery images={images} productName={product.name} />
 
         <div className="flex flex-col gap-8 lg:max-w-sm">
           <div className="flex flex-col gap-2">
@@ -58,7 +58,11 @@ export default async function ProductDetailPage({ params }: PageProps<"/urun/[sl
 
           <ProductPurchasePanel product={product} />
 
-          <ProductInfoAccordion constantAttributes={constantAttributes} careInfo={product.careInfo} />
+          <ProductInfoAccordion
+            description={product.description}
+            descriptiveAttributes={product.descriptiveAttributes}
+            careInfo={product.careInfo}
+          />
         </div>
       </div>
     </div>

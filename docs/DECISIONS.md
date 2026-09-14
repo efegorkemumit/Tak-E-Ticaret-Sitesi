@@ -127,6 +127,48 @@ Bir karar burada yer aldığında, aynı konudaki OPEN madde `docs/OPEN_QUESTION
 - **Etkilenen modüller:** Checkout/sipariş oluşturma akışı, ödeme modülü (Shopier ve Havale), sipariş/stok modülü.
 - **Yeniden değerlendirme koşulu:** Kalıcı bir mühendislik ilkesidir; yeniden değerlendirilmesi beklenmez.
 
+### D018 — Stok düşme/rezervasyon politikasının kesin içeriği
+- **Karar:** Stok, sipariş oluşturulduğu anda (ödeme onaylanmadan) rezerve edilir. Havale/EFT siparişlerinde varsayılan rezervasyon/bekleme süresi 24 saattir; bu süre ileride admin/site ayarlarından değiştirilebilir şekilde tasarlanır. Süre dolduğunda ödeme hâlâ onaylanmamışsa sipariş "bekleme süresi doldu/iptal" durumuna geçer ve rezerve stok otomatik olarak serbest bırakılır. Bu mekanizma Shopier'e özgü tasarlanmaz, sağlayıcıdan bağımsız çalışır.
+- **Durum:** Kesinleşti
+- **Neden:** Proje sahibi tarafından doğrudan onaylandı; Risk R1'i (eşzamanlı Shopier+Havale siparişinde fazla satış) azaltmak ve süresiz rezervasyon birikimini önlemek için erken/konservatif rezervasyon + otomatik zaman aşımı dengesi tercih edildi. Bu, D016'da taahhüt edilen "ilgili modülden önce kesinleştirilecek" politikanın somut hâlidir.
+- **Etkilenen modüller:** Sipariş/stok yönetimi modülü, Order durum makinesi, admin ayarlar (bekleme süresi).
+- **Yeniden değerlendirme koşulu:** Bekleme süresi değeri (24 saat) işletme ihtiyacına göre panelden değiştirilebilir; mekanizmanın kendisi kalıcı bir mimari karardır.
+
+### D019 — SKU/fiyat/stok'un yalnızca Variant seviyesinde tutulması
+- **Karar:** Her Product en az bir Variant'a sahip olmak zorundadır (varyantsız görünen ürünler tek bir default Variant ile temsil edilir). SKU, fiyat ve stok yalnızca Variant seviyesinde tutulur; Product seviyesinde bu alanların bir kopyası tutulmaz.
+- **Durum:** Kesinleşti
+- **Neden:** Proje sahibi tarafından doğrudan onaylandı; tek tutarlı kural admin formunu ve sepet/sipariş mantığını basitleştirir, veri çiftlenmesini önler. Bu, `docs/ARCHITECTURE.md` §7'de "henüz DECISIONS.md'ye taşınmamış mühendislik önerisi" olarak işaretli maddenin resmi karara dönüşmüş hâlidir.
+- **Etkilenen modüller:** Commerce veri modeli (Product/Variant şeması), admin ürün formu, storefront veri kontratı.
+- **Yeniden değerlendirme koşulu:** Kalıcı bir mimari karardır; pratikte yeniden değerlendirilmesi beklenmez.
+
+### D020 — Varyant seçim özniteliği ile ürün açıklama özniteliği ayrımı
+- **Karar:** Bir varyantta, seçilebilir (selectable) her öznitelik tipi (ör. ölçü, renk, taş seçeneği) yalnızca tek bir değer alabilir — varyant seçimi her zaman tekil bir kombinasyondur. Ancak bir ürün fiziksel olarak birden fazla değeri aynı anda taşıyabilir (ör. "Zirkon + İnci"); bu tür bilgiler bir varyant seçim özniteliği olmak zorunda değildir, Product'ın açıklayıcı/spesifikasyon bilgisinde (descriptive/spec attribute) birden fazla değer olarak tutulabilir.
+- **Durum:** Kesinleşti
+- **Neden:** Proje sahibi tarafından doğrudan onaylandı; sektör pratiğiyle (`jewelry-commerce` skill) ve müşteri arayüzündeki tek-seçim varyant seçici davranışıyla tutarlıdır, aynı zamanda birden fazla malzeme/taş içeren fiziksel ürünlerin bilgisini kaybetmeden modellemeyi mümkün kılar.
+- **Etkilenen modüller:** Variant-Attribute şeması, Product açıklama/spesifikasyon alanları, storefront'un AttributeButtonGroup/ProductInfoAccordion component'leri.
+- **Yeniden değerlendirme koşulu:** Kalıcı bir mimari karardır.
+
+### D021 — Ürün görünürlüğü (yayın durumu) stoktan bağımsızdır
+- **Karar:** Product üzerinde stoktan bağımsız, admin tarafından kontrol edilen bir yayın durumu alanı bulunur (DRAFT / PUBLISHED / ARCHIVED veya eşdeğer sade bir yapı). PUBLISHED + stok > 0 → ürün görünür ve satın alınabilir. PUBLISHED + tüm varyantların stoku 0 → ürün görünür kalır, "Tükendi" gösterilir ve satın alınamaz. DRAFT/yayında değil → müşteri storefront'unda hiç görünmez. Stok sıfıra düştüğü için ürün otomatik gizlenmez.
+- **Durum:** Kesinleşti
+- **Neden:** Proje sahibi tarafından doğrudan onaylandı; görünürlük ve stok durumunun birbirinden bağımsız yönetilmesi, SEO ve geri dönen müşteri beklentisi açısından en yaygın/basit yaklaşımdır.
+- **Etkilenen modüller:** Product şeması (yeni durum alanı), storefront listeleme/detay sayfaları, admin ürün formu.
+- **Yeniden değerlendirme koşulu:** Kalıcı bir mimari karardır.
+
+### D022 — Guest sepetin client-side tutulması, sunucu tarafı yeniden doğrulama
+- **Karar:** MVP'de guest sepeti yalnızca client-side (localStorage/cookie tabanlı) tutulur; bu aşamada kalıcı bir server-side Cart/CartItem tablosu oluşturulmaz. Buna karşılık, client'tan gelen fiyat, stok, availability ve toplam tutar bilgisi asla güvenilir kaynak kabul edilmez; checkout/Order oluşturulurken sunucu, variant ID/güncel fiyat/stok/adet/availability bilgisini veritabanından yeniden doğrular ve toplamları kendisi hesaplar. Sepet sayfa yenilemesinden sonra korunur.
+- **Durum:** Kesinleşti
+- **Neden:** Proje sahibi tarafından doğrudan onaylandı; MVP'de sepetin çoklu cihaz senkronizasyonuna ihtiyaç yoktur, client-side yaklaşım hem şemayı hem terkedilmiş sepet temizleme ihtiyacını ortadan kaldırır. Sunucu-taraflı yeniden doğrulama kuralı, client verisinin güvenilmez kabul edilmesi ilkesiyle tutarlıdır.
+- **Etkilenen modüller:** Storefront sepet implementasyonu, checkout/Order oluşturma akışı (sunucu-taraflı fiyat/stok doğrulama).
+- **Yeniden değerlendirme koşulu:** Çoklu cihaz sepet senkronizasyonu veya "terkedilmiş sepet" pazarlama ihtiyacı doğarsa (MVP sonrası) server-side Cart tablosu yeniden değerlendirilebilir.
+
+### D023 — Category tekil, Collection çoktan-çoğa ilişkisi
+- **Karar:** Bir Product tek bir ana Category'ye aittir (tekil ilişki). Bir Product, birden fazla Collection içinde yer alabilir (çoktan-çoğa ilişki). Category ana ürün sınıflandırmasını, Collection ise merchandising/vitrin gruplamasını temsil eder.
+- **Durum:** Kesinleşti
+- **Neden:** Proje sahibi tarafından doğrudan onaylandı; `jewelry-commerce` skill'indeki sektör pratiğiyle uyumludur ve navigasyonu basitleştirir, koleksiyonun kategoriler arası kesişebilen pazarlama amaçlı doğasını korur.
+- **Etkilenen modüller:** Category/Collection şeması (join table yalnızca Collection için), storefront navigasyon ve filtreleme.
+- **Yeniden değerlendirme koşulu:** Kalıcı bir mimari karardır.
+
 ---
 
 ## Özet Tablo
@@ -150,3 +192,9 @@ Bir karar burada yer aldığında, aynı konudaki OPEN madde `docs/OPEN_QUESTION
 | D015 | Sipariş sorgulamada ek doğrulama zorunlu | Kesinleşti (ilke) |
 | D016 | Stok politikası modülden önce kesinleştirilecek | Kesinleşti (ilke) |
 | D017 | Idempotent sipariş/ödeme akışları | Kesinleşti |
+| D018 | Stok politikası: erken rezervasyon + 24s havale bekleme + oto-iptal | Kesinleşti |
+| D019 | SKU/fiyat/stok yalnızca Variant seviyesinde | Kesinleşti |
+| D020 | Seçilebilir öznitelik=tekil değer, açıklayıcı öznitelik=çoklu değer olabilir | Kesinleşti |
+| D021 | Ürün görünürlüğü (DRAFT/PUBLISHED/ARCHIVED) stoktan bağımsız | Kesinleşti |
+| D022 | Guest sepet client-side, sunucu fiyat/stok/tutarı yeniden doğrular | Kesinleşti |
+| D023 | Category tekil, Collection çoktan-çoğa ilişki | Kesinleşti |

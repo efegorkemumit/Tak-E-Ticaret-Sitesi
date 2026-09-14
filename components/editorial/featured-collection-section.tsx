@@ -1,5 +1,5 @@
 import Link from "next/link"
-import type { CatalogTaxonomyEntry, Product } from "@/lib/catalog"
+import type { CatalogProductDto, CatalogTaxonomyDto } from "@/lib/commerce/catalog"
 import { ProductCard } from "@/components/product/product-card"
 
 /**
@@ -12,15 +12,12 @@ function FeaturedCollectionSection({
   collection,
   products,
 }: {
-  collection: CatalogTaxonomyEntry
-  products: Product[]
+  collection: CatalogTaxonomyDto
+  products: CatalogProductDto[]
 }) {
   return (
     <section className="flex flex-col gap-6">
-      <div className="flex flex-col gap-1">
-        <h2 className="font-display text-2xl text-foreground">{collection.name}</h2>
-        <p className="text-sm text-muted-foreground">{collection.description}</p>
-      </div>
+      <h2 className="font-display text-2xl text-foreground">{collection.name}</h2>
       <div className="grid grid-cols-2 gap-x-4 gap-y-10 sm:grid-cols-4">
         {products.slice(0, 4).map((product) => (
           <ProductCard key={product.id} product={product} />

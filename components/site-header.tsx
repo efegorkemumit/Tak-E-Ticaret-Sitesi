@@ -1,10 +1,11 @@
 import Link from "next/link"
-import { ShoppingBag } from "lucide-react"
 import { MobileNav } from "./mobile-nav"
+import { CartDrawer } from "./cart/cart-drawer"
 
 /**
  * `docs/COMPONENT_INVENTORY.md` #7 — navigasyon iskeleti. Sunucu component:
- * gerçek etkileşim yalnızca mobil menüde (`MobileNav`, ayrı client component).
+ * gerçek etkileşim yalnızca mobil menüde (`MobileNav`) ve sepette
+ * (`CartDrawer`) — ikisi de ayrı client component.
  * `app/layout.tsx`'e bağlıdır, route'ların kendi içine tekrar header eklemesi
  * gerekmez.
  *
@@ -41,13 +42,7 @@ function SiteHeader() {
         </nav>
 
         <div className="flex items-center gap-1">
-          <span
-            aria-disabled="true"
-            title="Sepet — bu aşamada demo amaçlıdır, yakında aktif olacaktır"
-            className="inline-flex size-8 cursor-not-allowed items-center justify-center rounded-md text-muted-foreground"
-          >
-            <ShoppingBag className="size-5" />
-          </span>
+          <CartDrawer />
           <MobileNav links={NAV_LINKS} />
         </div>
       </div>

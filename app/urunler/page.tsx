@@ -1,7 +1,7 @@
 import type { Metadata } from "next"
 import { Breadcrumb } from "@/components/ui/breadcrumb"
 import { ProductGrid } from "@/components/product/product-grid"
-import { getAllCategories, getAllProducts } from "@/lib/catalog"
+import { getCategories, getPublishedProducts } from "@/lib/commerce/catalog"
 import Link from "next/link"
 
 export const metadata: Metadata = {
@@ -9,9 +9,11 @@ export const metadata: Metadata = {
   description: "Gümüş kolye, yüzük, bileklik ve küpe modellerini keşfedin.",
 }
 
-export default function AllProductsPage() {
-  const products = getAllProducts()
-  const categories = getAllCategories()
+// Katalog gerçek DB'den geliyor, build-time'da dondurulamaz.
+export const dynamic = "force-dynamic"
+
+export default async function AllProductsPage() {
+  const [products, categories] = await Promise.all([getPublishedProducts(), getCategories()])
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6">

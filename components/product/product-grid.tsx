@@ -1,4 +1,4 @@
-import type { Product } from "@/lib/catalog"
+import type { CatalogProductDto } from "@/lib/commerce/catalog"
 import { ProductCard } from "./product-card"
 import { EmptyState } from "@/components/ui/empty-state"
 
@@ -8,7 +8,7 @@ import { EmptyState } from "@/components/ui/empty-state"
  * göre) — asimetri yok. `docs/COMPONENT_INVENTORY.md`'de ayrı bir numarası
  * yok; ProductCard'ları saran ortak bir kompozisyon olarak eklendi.
  */
-function ProductGrid({ products }: { products: Product[] }) {
+function ProductGrid({ products }: { products: CatalogProductDto[] }) {
   if (products.length === 0) {
     return (
       <EmptyState

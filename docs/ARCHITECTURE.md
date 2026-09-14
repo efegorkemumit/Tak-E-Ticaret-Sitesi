@@ -27,11 +27,11 @@ Bu tablo `docs/AGENT_TEAM.md`'deki "Team Members" tablosunun mimari yansımasıd
 
 Commerce domain'i, `jewelry-commerce` skill'inin terminolojisiyle tutarlı şu varlıkları kapsar (kesin şema değil, kavramsal sınır):
 
-- **Category** — navigasyonel, nispeten sabit sınıflandırma.
-- **Collection** — tematik/sezonluk, kategoriler arası kesişebilen küratörlü gruplama.
-- **Product** — katalog seviyesinde görünürlük/içerik birimi. Şu anki, henüz `docs/DECISIONS.md`'ye taşınmamış mühendislik tercihinde (bkz. §7) tek başına satılabilir birim olarak modellenmiyor.
-- **Variant** — bu tercihte satılabilir birim adayı: öznitelik kombinasyonu + SKU/Price/Stock'un varyant seviyesinde tutulması önerisi. **Bu son madde §7'de listelenen, henüz onaylanmamış bir mühendislik önerisidir — kesin mimari karar değildir.** Tüm öznitelikler (materyal, kaplama, renk, taş türü, ölçü, zincir uzunluğu) opsiyonel tutulur (OPEN #4 netleşene kadar).
-- **Cart** — guest'e bağlı, geçici, satır bazlı fiyat/adet taşıyan yapı.
+- **Category** — navigasyonel, nispeten sabit sınıflandırma. Bir Product tek bir Category'ye aittir (tekil ilişki — D023); kesin kategori listesinin içeriği hâlâ OPEN (#3).
+- **Collection** — tematik/sezonluk, kategoriler arası kesişebilen küratörlü gruplama. Bir Product birden fazla Collection'da yer alabilir (çoktan-çoğa ilişki — D023).
+- **Product** — katalog seviyesinde görünürlük/içerik birimi; tek başına satılabilir birim değildir (**D019** — artık kesinleşmiş bir mimari karar, önceki bir revizyonda bu belgede "henüz onaylanmamış mühendislik tercihi" olarak hedge'lenmişti, o hedge artık geçersizdir). Ayrıca stok durumundan bağımsız bir yayın durumu taşır: `DRAFT` / `PUBLISHED` / `ARCHIVED` (**D021**) — stok sıfırlansa bile `PUBLISHED` bir ürün otomatik gizlenmez, "Tükendi" ile görünür kalır.
+- **Variant** — gerçek satılabilir birim: öznitelik kombinasyonu + kendi SKU/Price/Stock'u. Her Product en az bir Variant'a sahip olmak zorundadır; varyantsız görünen ürünler tek bir default Variant ile temsil edilir (**D019**). Seçilebilir öznitelikler (materyal, kaplama, renk, taş türü, ölçü, zincir uzunluğu) opsiyonel tutulur (hangilerinin gerçekten kullanılacağı OPEN #4); bir varyantta seçilebilir her öznitelik tipi yalnızca **tek** bir değer alabilir — birden fazla değer taşıyan açıklayıcı/spesifikasyon bilgisi (ör. "Zirkon + İnci") varyant seçimi değil, Product'ın ayrı bir açıklama alanında tutulur (**D020**).
+- **Cart** — guest'e bağlı, client-side (localStorage/cookie) tutulan geçici satır listesi; **sunucuda kalıcı bir Cart/CartItem kaydı yoktur** (D022). Commerce'in sepetle ilişkisi yalnızca checkout anında, §4.1'deki `items[].variantId/quantity` üzerinden veritabanından yeniden doğrulama şeklinde gerçekleşir.
 - **Order** — commerce'in sahiplendiği tek gerçeklik kaynağı; sipariş numarası, teslimat/iletişim bilgisi, satır kalemi anlık görüntüsü (snapshot), ödeme yöntemi, kendi sipariş durumu (`orderStatus` — Ödeme Bekliyor/Hazırlanıyor/Kargoya Verildi/Teslim Edildi/İptal Edildi/İade Edildi), kargo takip kodunu taşır. **Ham/jenerik `paymentStatus` (PENDING/CONFIRMED/FAILED) Order'ın kendi alanı değildir**, yalnızca Payment kaydında tutulur (bkz. §4.3/§5.3) — commerce, payments'tan gelen bu sinyale göre kendi `orderStatus`'unu günceller.
 - **Payment** — payments'ın sahiplendiği, Order'a `orderId` üzerinden bağlı ayrı bir kayıt; ödeme durumu ve sağlayıcı referansını taşır.
 
@@ -39,18 +39,22 @@ Bu sınırların en kritik ilkesi: **Order ownership tamamen commerce'te kalır;
 
 ## 4. Cross-Module Contracts
 
-Aşağıdaki üç kontrat, storefront↔commerce↔payments arasında yürütülen contract alignment turunda (`CONTRACT_ALIGNMENT: PASS`) üç tarafça da mutabık kalınmıştır. Tamamı alan-seviyeli/kavramsaldır — kod veya şema değildir — ve ilgili OPEN kararlardan (#4, #8, #9) bağımsız çalışacak şekilde tasarlanmıştır.
+Aşağıdaki üç kontrat, storefront↔commerce↔payments arasında yürütülen contract alignment turunda (`CONTRACT_ALIGNMENT: PASS`) üç tarafça da mutabık kalınmıştır. Tamamı alan-seviyeli/kavramsaldır — kod veya şema değildir — ve ilgili OPEN kararlardan (#4, #9) bağımsız çalışacak şekilde tasarlanmıştır (#8 stok politikası artık D018 ile kesinleşti, bkz. §7).
 
 ### 4.1 Storefront → Commerce Kontratı
 
+> **D022 patch notu:** Guest sepeti artık client-side (localStorage/cookie) tutulur; sunucuda kalıcı bir Cart/CartItem kaydı yoktur (bkz. `docs/DECISIONS.md` D022). Bu nedenle checkout submit isteği artık bir `cartReference` **taşımaz** — sepetin tamamı, satır bazlı `items` dizisi olarak doğrudan istekle birlikte gönderilir. Bu, yeni bir OPEN karar değildir; D022'nin doğal/zorunlu sonucudur.
+
 Checkout submit sırasında storefront'un commerce'e gönderdiği minimum alanlar:
 
-- `cartReference` — hangi sepetin siparişe dönüştüğü.
+- `items`: `{ variantId, quantity }[]` — sepetteki her satır. Yalnızca hangi varyanttan kaç adet istendiğini taşır; fiyat, ürün adı, availability gibi hiçbir görüntüleme bilgisi bu dizide YER ALMAZ (aşağıdaki kritik ilkeye bkz.).
 - `orderIdempotencyKey` — storefront'ta checkout sayfası **mount anında bir kez** üretilir; retry/çift tıklamada değişmeden yeniden gönderilir; sepet değişip yeniden checkout'a girilirse yeni key üretilir.
 - `contact`: fullName, phone, email.
-- `deliveryAddress`: addressLine, city, district, postalCode (ülke TR sabit — D001).
+- `deliveryAddress`: addressLine, city, district, postalCode, country (sabit `"TR"` — D001).
 - `giftPackagingSelected`: opsiyonel boolean — checkout'a etkisi (ücret vb.) hâlâ OPEN (`docs/PROJECT_BRIEF.md` Bölüm 10); backend şimdilik yalnızca kaydeder, ücretlendirme mantığı yoktur.
 - `paymentMethod`: `"SHOPIER" | "BANK_TRANSFER"` (D006) — provider'a özgü hiçbir alan bu istekte yer almaz.
+
+**Kritik ilke — client'tan gelen hiçbir fiyat/toplam/stok/availability/ürün adı otoritatif değildir (D022):** Commerce, isteği işlerken yalnızca `items[].variantId` ve `items[].quantity` alanlarına güvenir. Her `variantId` için güncel fiyat, stok/availability ve ürün/varyant bilgisi **veritabanından yeniden çözülür**; satır toplamları ve genel toplam sunucu tarafında yeniden hesaplanır. Storefront'un checkout ekranında gösterdiği fiyat/toplam yalnızca bir önizlemedir — sipariş, isteğe eklenmiş olsa bile hiçbir client-taraflı fiyat/toplam alanını kullanmaz. Bu, hem D022'nin "client verisi güvenilmez" ilkesiyle hem de sepetin artık sunucuda kalıcı bir kayıt olmamasıyla (dolayısıyla sunucunun tek doğruluk kaynağının kendi Variant tablosu olmasıyla) tutarlıdır.
 
 ### 4.2 Commerce → Payments Kontratı
 
@@ -119,15 +123,22 @@ Aşağıdakiler bu belgede **kesinleştirilmemiştir** — mimari, hangi yönde 
 
 | Konu | Kaynak | Bu mimarideki durumu |
 |---|---|---|
-| Kesin ürün kategorileri | `docs/OPEN_QUESTIONS.md` #3 | Esnek/genişletilebilir Category yapısı varsayımı |
-| Kesin varyant yapısı | #4 | Tüm öznitelikler opsiyonel, generic attribute modeli |
-| Stok düşme/rezervasyon politikası | #8, `docs/DECISIONS.md` D016 | Kontrat bu politikadan bağımsız çalışır (stok, Order'ın iç adımı, Order-Payment sınırının parçası değil); DB-seviyesi atomik azaltma ilkesi politikadan bağımsız olarak şimdiden geçerlidir |
+| Kesin ürün kategorileri (liste içeriği) | `docs/OPEN_QUESTIONS.md` #3 | Esnek/genişletilebilir Category yapısı varsayımı; ilişkinin *şekli* D023 ile kesinleşti (tekil Category, çoktan-çoğa Collection — bkz. §3), yalnızca listenin *içeriği* hâlâ OPEN |
+| Kesin varyant yapısı (hangi öznitelikler kullanılacak) | #4 | Tüm öznitelikler opsiyonel, generic attribute modeli; seçilebilir/açıklayıcı öznitelik ayrımı D020 ile kesinleşti (bkz. §3), yalnızca hangi özniteliklerin gerçekten kullanılacağı hâlâ OPEN |
 | Shopier teknik entegrasyon yöntemi | #9, D009/D010 | PaymentProvider tamamen soyut; hiçbir Shopier'e özgü alan/davranış varsayılmadı |
 | Görsel tedarik kaynağı | #11 | Panel görsel yükleme özelliğiyle hazır tutuluyor |
 | Sipariş sorgulama doğrulama alanı | #12, D015 | Generic "doğrulama bilgisi" alanı; kesin alan (e-posta/telefon) netleşmeden implementasyon kilitlenmez |
 | Hediye paketi checkout etkisi | `docs/PROJECT_BRIEF.md` Bölüm 10 | Opsiyonel/gizlenebilir slot, ücretlendirme mantığı yok |
 | Kargo ücreti/ücretsiz kargo sınırı | #5/#6/#7 | §4.1'deki checkout kontratına dahil edilmedi — kargo ücreti sunucu tarafında (commerce) hesaplanır ve yalnızca sonuç toplamına yansır; storefront'un göndereceği bir alan değildir. Nihai ücret/sınır değeri OPEN. |
 
-**Henüz `docs/DECISIONS.md`'ye taşınmamış mühendislik önerileri** (proje kararı değil, ilgili teammate'in tercihi — Lead/proje sahibi onayı gerekir): SKU/fiyat/stok'un her zaman Variant seviyesinde tutulması (bkz. §3); Category-Collection çoktan-çoğa ilişki; `PaymentMethod` enum adlarının `SHOPIER`/`BANK_TRANSFER` olması (bu son madde yalnızca D006'nın isimlendirme yansımasıdır, yeni bir karar değildir).
+**Bu turda (VIDEO 06) resmi karara bağlanan, daha önce bu tabloda veya "henüz DECISIONS.md'ye taşınmamış mühendislik önerisi" olarak listelenen maddeler** — artık bu tablonun parçası değildir:
+- Stok düşme/rezervasyon politikasının kesin içeriği (erken rezervasyon + 24 saat havale bekleme + otomatik iptal, sağlayıcıdan bağımsız) → **D018** (önceki D016 yalnızca "modülden önce kesinleştirilecek" ilkesiydi, artık somutlaştı).
+- SKU/fiyat/stok'un yalnızca Variant seviyesinde tutulması, her Product'ın en az bir Variant'a sahip olması → **D019** (bkz. §3).
+- Varyant seçim özniteliği (tekil değer) ile Product açıklama/spesifikasyon özniteliği (birden fazla değer olabilir) ayrımı → **D020** (bkz. §3).
+- Ürün görünürlüğünün (DRAFT/PUBLISHED/ARCHIVED) stok durumundan bağımsız olması → **D021** (bkz. §3).
+- Guest sepetin yalnızca client-side tutulması, sunucunun client fiyat/stok/toplam verisini asla otoritatif kabul etmemesi → **D022** (bkz. §3 Cart tanımı ve §4.1).
+- Product-Category tekil, Product-Collection çoktan-çoğa ilişkisi → **D023** (bkz. §3).
+
+`PaymentMethod` enum adlarının `SHOPIER`/`BANK_TRANSFER` olması hâlâ yalnızca D006'nın isimlendirme yansımasıdır, ayrı bir mühendislik önerisi/karar değildir.
 
 **Security'nin koşullu/recommendation nitelikli önerileri** (kesin karar değil): webhook imza doğrulaması ve buna bağlı sağlayıcı-bildirim dedup katmanı (yalnızca Shopier webhook desteği doğrulanırsa geçerli — §6'daki `orderIdempotencyKey` mekanizması sipariş/ödeme akışını zaten kapsıyor, ama henüz var olmayan bir Shopier webhook'unu kapsamaz), admin rate limiting/lockout, sipariş sorgulamada opak sipariş no/jenerik hata mesajı, CSP/HSTS/HTTPS launch checklist. Bunlar `docs/AGENT_TEAM.md`'deki Recommendations listesiyle tutarlıdır.

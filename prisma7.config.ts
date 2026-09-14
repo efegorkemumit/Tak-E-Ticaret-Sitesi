@@ -7,6 +7,9 @@ export default defineConfig({
   schema: "prisma/schema.prisma",
   migrations: {
     path: "prisma/migrations",
+    // Yalnızca küçük, açıkça DEMO gümüş/taşlı örnek veri (bkz. prisma/seed.ts) —
+    // gerçek müşteri katalog verisi DEĞİLDİR.
+    seed: "tsx prisma/seed.ts",
   },
   datasource: {
     url: process.env["DATABASE_URL"],

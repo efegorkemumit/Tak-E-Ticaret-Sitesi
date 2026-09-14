@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { Newsreader, Public_Sans, Geist_Mono } from "next/font/google";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
+import { CartProvider } from "@/lib/cart/cart-context";
+import { ToastProvider } from "@/components/ui/toast";
 import "./globals.css";
 
 /*
@@ -46,9 +48,13 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       className={`${displayFont.variable} ${bodyFont.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="flex min-h-full flex-col">
-        <SiteHeader />
-        <main className="flex flex-1 flex-col">{children}</main>
-        <SiteFooter />
+        <ToastProvider>
+          <CartProvider>
+            <SiteHeader />
+            <main className="flex flex-1 flex-col">{children}</main>
+            <SiteFooter />
+          </CartProvider>
+        </ToastProvider>
       </body>
     </html>
   );

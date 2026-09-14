@@ -4,9 +4,11 @@ Bu belge, `docs/RAW_CLIENT_NOTES.md` ve `docs/PROJECT_BRIEF.md` içinde **OPEN**
 
 Proje sahibi tarafından resmî olarak karara bağlanmış konular bu listeden çıkarılır ve `docs/DECISIONS.md` içine taşınır. Bir sorunun *ilkesi* karara bağlanmış ama *uygulama detayı* hâlâ açıksa (ör. "ek doğrulama yapılacak" kesinleşti ama "e-posta mı telefon mu" açık), soru burada dar kapsamla kalmaya devam eder.
 
-Toplam 15 ana soru, 4 öncelik grubuna ayrılmıştır.
+Toplam 14 ana soru, 4 öncelik grubuna ayrılmıştır.
 
 > **Revizyon notu (2. güncelleme):** Proje sahibi, panelin tek bir temel admin rolüyle çalışacağına kesin karar verdiğinden eski "#11 — Yönetim panelini kaç kişi/hangi roller kullanacak?" sorusu çözülmüş sayılarak listeden çıkarılmış ve `docs/DECISIONS.md` D005'e taşınmıştır. Sipariş sorgulamanın ek doğrulama isteyeceği (D015) ve stok politikasının ilgili modülden önce kesinleştirileceği (D016) artık kesin karar olduğundan, ilgili sorular yalnızca *uygulama detayını* soracak şekilde yeniden yazılmıştır.
+>
+> **Revizyon notu (3. güncelleme — VIDEO 06):** Proje sahibi, commerce şeması implementasyonundan önce 6 blocker kararı verdi (`docs/DECISIONS.md` D018-D023). Bunlardan stok düşme/rezervasyon politikası (eski #8) tamamen karara bağlandığı için listeden çıkarılmıştır. Varyant yapısı sorusu (#4), yapısal/mimari kısmı (SKU/fiyat/stok'un Variant seviyesinde tutulması, seçilebilir/açıklayıcı öznitelik ayrımı) karara bağlandığından yalnızca katalog içerik detayını (hangi öznitelik hangi kategoride zorunlu) soracak şekilde daraltılmıştır.
 
 ---
 
@@ -30,9 +32,10 @@ Bu sorular, genel tasarım sistemini ve temel veri modelini doğrudan etkilediğ
 - **Etkilenen modül:** Ürün veri modeli, navigasyon, kategori sayfaları.
 
 ### 4. Ürün varyantlarının kesin yapısı nasıl olacak (hangi öznitelikler zorunlu/opsiyonel)?
-- **Neden önemli?** Bu, Prisma veri şemasının ve ürün/varyant yönetim ekranlarının temelini oluşturur; sonradan yapısal değişiklik maliyetlidir.
-- **Geçici varsayım:** Ham notlarda listelenen tüm özniteliklerin (materyal, kaplama, renk, taş türü, beden/ölçü, zincir uzunluğu vb.) hepsinin opsiyonel olduğu, esnek bir öznitelik modeliyle ilerlenir.
-- **Etkilenen modül:** Ürün/varyant veri modeli, ürün ekleme ekranı, ürün detay sayfası.
+> **Not (VIDEO 06 güncellemesi):** Bu sorunun yapısal/mimari kısmı artık kesinleşti — SKU/fiyat/stok'un her zaman Variant seviyesinde tutulacağı (D019) ve seçilebilir öznitelik (tek değer) ile açıklayıcı/spec öznitelik (birden fazla değer olabilir) ayrımı (D020) karara bağlandı. Açık kalan yalnızca **hangi belirli özniteliklerin (materyal/kaplama/renk/taş türü/ölçü/zincir uzunluğu) hangi kategoride zorunlu/opsiyonel olacağı ve gerçek katalogda hangilerinin fiilen kullanılacağıdır** — bu bir şema/mimari kararı değil, katalog içerik kararıdır ve schema implementasyonunu bloke etmez (şema zaten D019/D020 ile esnek/genel biçimde çalışacak şekilde tasarlanabilir).
+- **Neden önemli?** Ürün ekleme ekranındaki form doğrulaması ve gerçek katalog girişi için nihayetinde gerekecek, ama şema tasarımını artık beklemiyor.
+- **Geçici varsayım:** Tüm öznitelikler her kategoride opsiyonel kalır; gerçek katalog görülünce kategori bazlı zorunluluk kuralları (varsa) eklenir.
+- **Etkilenen modül:** Ürün ekleme ekranı (form doğrulama), gerçek katalog veri girişi. (Veri modelinin kendisi artık D019/D020 ile netleşmiştir.)
 
 ---
 
@@ -54,12 +57,6 @@ Bu sorular projenin tamamını değil, belirli bir modülü etkiler; ilgili mod�
 - **Neden önemli?** Checkout ekranında müşteriye doğru toplam ve ücretsiz kargo bilgisinin gösterilebilmesi için gereklidir.
 - **Geçici varsayım:** Panelden yönetilebilen, başlangıçta `[UCRETSIZ_KARGO_SINIRI_PLACEHOLDER]` olarak ayarlanan bir eşik değeriyle ilerlenir (0 = devre dışı da olabilir).
 - **Etkilenen modül:** Sepet/checkout modülü, admin ayarlar.
-
-### 8. Stok düşme/rezervasyon politikası kesin olarak ne olacak?
-> **Not:** Bu politikanın sipariş/stok modülü geliştirilmeden önce kesinleştirileceği artık kesin karardır (`docs/DECISIONS.md` D016). Açık olan, politikanın *kendisidir* — aşağıdaki soru bunu sorar.
-- **Neden önemli?** Stoğun sipariş oluşturulduğu anda mı yoksa ödeme onaylandığında mı düşüleceği netleşmezse, aynı üründe eşzamanlı Shopier ve Havale siparişleri stok tutarsızlığına (fazla satışa) yol açabilir. Ayrıca havale siparişinde ödeme bekleme süresi dolduğunda siparişin otomatik iptal edilip stoğun serbest bırakılıp bırakılmayacağı da belirsizdir.
-- **Geçici varsayım:** Stok, sipariş oluşturulduğu anda konservatif biçimde rezerve edilir; havale siparişlerinde makul bir süre (ör. panelden değiştirilebilir 24-48 saat) sonunda otomatik iptal edilmediği, yöneticinin manuel müdahale ettiği varsayılır.
-- **Etkilenen modül:** Sipariş/stok yönetimi modülü.
 
 ### 9. Shopier hesabının kullanılabilir entegrasyon imkânları nelerdir?
 > **Not:** Bu araştırmanın ödeme modülüne gelindiğinde yapılacağı ve o ana kadar hiçbir Shopier API/webhook özelliğinin varsayılmayacağı artık kesin karardır (`docs/DECISIONS.md` D009, D010).
@@ -117,11 +114,10 @@ Bu sorular geliştirmeyi bloklamaz (placeholder içerikle geliştirme sürdürü
 | 1 | Geliştirme öncesi | Marka adı | Genel kimlik |
 | 2 | Geliştirme öncesi | Logo/kurumsal kimlik | Tasarım sistemi |
 | 3 | Geliştirme öncesi | Ürün kategorileri | Ürün veri modeli |
-| 4 | Geliştirme öncesi | Varyant yapısı | Ürün/varyant veri modeli |
+| 4 | Geliştirme öncesi | Varyant yapısı (yalnızca katalog içerik detayı — hangi öznitelik hangi kategoride zorunlu) | Ürün ekleme ekranı, katalog girişi |
 | 5 | Modül öncesi | Kargo firması | Sipariş/kargo |
 | 6 | Modül öncesi | Kargo ücreti | Sepet/checkout |
 | 7 | Modül öncesi | Ücretsiz kargo sınırı | Sepet/checkout |
-| 8 | Modül öncesi | Stok düşme/rezervasyon politikasının içeriği | Sipariş/stok |
 | 9 | Modül öncesi | Shopier entegrasyon yöntemi | Ödeme modülü |
 | 10 | Modül öncesi | Bildirim kanalı | Bildirim modülü |
 | 11 | Modül öncesi | Görsel tedarik kaynağı | Ürün görsel yönetimi |
@@ -137,3 +133,8 @@ Bu sorular geliştirmeyi bloklamaz (placeholder içerikle geliştirme sürdürü
 | Eski soru | Karar | Kayıt |
 |---|---|---|
 | Yönetim panelini kaç kişi/hangi roller kullanacak? | İlk sürümde tek temel admin rolü. | `docs/DECISIONS.md` D005 |
+| Stok düşme/rezervasyon politikası kesin olarak ne olacak? (eski #8) | Sipariş anında erken rezervasyon; havale siparişinde 24 saat (admin ayarlanabilir) bekleme, süre dolunca otomatik iptal + stok serbest bırakma; Shopier'e özgü tasarlanmaz. | `docs/DECISIONS.md` D018 |
+| Varyant yapısının şema/mimari kısmı (SKU/fiyat/stok hangi seviyede, öznitelik çoklu/tekil değer alabilir mi?) | SKU/fiyat/stok yalnızca Variant seviyesinde (her Product ≥1 Variant); seçilebilir öznitelik tekil değer, açıklayıcı/spec öznitelik çoklu değer olabilir. | `docs/DECISIONS.md` D019, D020 |
+| Stok tükenince ürün/varyant görünürlüğü ne olacak? | Product'ta stoktan bağımsız DRAFT/PUBLISHED/ARCHIVED durumu; PUBLISHED+stoksuz ürün "Tükendi" ile görünür kalır, otomatik gizlenmez. | `docs/DECISIONS.md` D021 |
+| Guest sepeti server-side mi tutulacak? | MVP'de yalnızca client-side (localStorage/cookie); server Cart tablosu yok, ama fiyat/stok/tutar checkout'ta sunucuda yeniden doğrulanır. | `docs/DECISIONS.md` D022 |
+| Product-Category/Collection ilişkisi çoktan-çoğa mı? | Category tekil FK, Collection çoktan-çoğa. | `docs/DECISIONS.md` D023 |
