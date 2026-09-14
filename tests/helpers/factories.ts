@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto"
 import { testPrisma } from "./test-prisma"
 import { ProductStatus } from "../../lib/generated/prisma/client"
 import type { CheckoutInput } from "../../lib/commerce/checkout-schema"
+import { hashPassword, issueSession } from "../../lib/auth"
 
 /**
  * DİKKAT — YIKICI İŞLEM: hedef `TEST_DATABASE_URL`'deki commerce verisinin
@@ -25,8 +26,14 @@ export async function resetCommerceTables(): Promise<void> {
   // Order'a "geri" çıkmaz). Bu ayrım gözden kaçırılıp gerçek DB'ye karşı test
   // çalıştırılana kadar fark edilmemişti — testler arası veri sızıntısına yol
   // açıyordu.
+  //
+  // `AdminUser` de aynı gerekçeyle ayrıca listeleniyor (VIDEO 07 — D025).
+  // `AdminSession`'ı AYRICA eklemeye gerek YOK: şemada
+  // `AdminSession.adminUser` ilişkisi `onDelete: Cascade` (bkz.
+  // `prisma/schema.prisma`) — `AdminUser`'ı TRUNCATE CASCADE etmek zaten
+  // tüm bağlı `AdminSession` satırlarını da siler.
   await testPrisma.$executeRawUnsafe(
-    'TRUNCATE TABLE "Order", "Category", "Collection", "AttributeDefinition" RESTART IDENTITY CASCADE'
+    'TRUNCATE TABLE "Order", "Category", "Collection", "AttributeDefinition", "AdminUser" RESTART IDENTITY CASCADE'
   )
 }
 
@@ -56,6 +63,28 @@ export async function createCollection(
   const unique = randomUUID().slice(0, 8)
   return testPrisma.collection.create({
     data: { name: name ?? `Test Koleksiyon ${unique}`, slug: `test-koleksiyon-${unique}`, description },
+  })
+}
+
+/** D028 — yeni bir öznitelik TİPİ oluşturur (ör. "tasTuru"/"Taş Türü"). `key` benzersiz olmalıdır. */
+export async function createAttributeDefinition(
+  key?: string,
+  label?: string
+): Promise<{ id: string; key: string; label: string }> {
+  const unique = randomUUID().slice(0, 8)
+  return testPrisma.attributeDefinition.create({
+    data: { key: key ?? `testOznitelik${unique}`, label: label ?? `Test Öznitelik ${unique}` },
+  })
+}
+
+/** D028 — bir öznitelik tipi için somut bir DEĞER oluşturur (ör. "Gümüş"). */
+export async function createAttributeValue(
+  attributeDefinitionId: string,
+  value?: string
+): Promise<{ id: string; value: string }> {
+  const unique = randomUUID().slice(0, 8)
+  return testPrisma.attributeValue.create({
+    data: { attributeDefinitionId, value: value ?? `Değer ${unique}` },
   })
 }
 
@@ -180,4 +209,58 @@ export function buildCheckoutInput(overrides: Partial<CheckoutInput> & { items: 
     giftPackagingSelected: overrides.giftPackagingSelected ?? false,
     paymentMethod: overrides.paymentMethod ?? "BANK_TRANSFER",
   }
+}
+
+// -----------------------------------------------------------------------------
+// Admin auth fixture'ları (VIDEO 07 Wave C — D025)
+// -----------------------------------------------------------------------------
+
+export interface TestAdmin {
+  id: string
+  email: string
+  /** Testin `createFirstAdmin`/`loginAdmin` ile karşılaştırabilmesi için düz metin parola. */
+  password: string
+}
+
+/**
+ * Doğrudan `testPrisma` ile bir `AdminUser` satırı oluşturur (gerçek
+ * `createFirstAdmin`/`loginAdmin` akışını ATLAR) — parola hash'i her zaman
+ * GERÇEK `hashPassword()` (lib/auth/password.ts) ile üretilir, kendi hash
+ * mantığını YENİDEN İMPLEMENTE ETMEZ (team-lead'in availability.ts uyarısıyla
+ * aynı ilke).
+ */
+export async function createAdminUser(options?: { email?: string; password?: string }): Promise<TestAdmin> {
+  const unique = randomUUID().slice(0, 8)
+  const email = options?.email ?? `admin-${unique}@example.com`
+  const password = options?.password ?? "test-password-123"
+  const passwordHash = await hashPassword(password)
+
+  const admin = await testPrisma.adminUser.create({ data: { email, passwordHash } })
+  return { id: admin.id, email: admin.email, password }
+}
+
+/**
+ * Bir `AdminUser` İÇİN gerçek `issueSession()` (session-core.ts, cookie'den
+ * bağımsız) çağırarak GEÇERLİ bir `AdminSession` satırı + ham token üretir.
+ * `expired: true` verilirse, gerçek zamanı beklemeden "süresi dolmuş oturum
+ * reddedilir" senaryosunu test edebilmek için `expiresAt`'ı doğrudan geçmişe
+ * çeker (yalnızca bu tek alan test kolaylığı için elle güncellenir, oturum
+ * ÜRETİM mantığı hâlâ gerçek `issueSession`'dır).
+ */
+export async function createAdminSession(adminUserId: string, options?: { expired?: boolean }): Promise<string> {
+  const { token } = await issueSession(adminUserId, testPrisma)
+  if (options?.expired) {
+    await testPrisma.adminSession.updateMany({
+      where: { adminUserId },
+      data: { expiresAt: new Date(Date.now() - 60 * 1000) },
+    })
+  }
+  return token
+}
+
+/** Kolaylık: hem admin'i hem geçerli bir oturum token'ını tek çağrıda oluşturur — testlerin çoğu yalnızca "kimliği doğrulanmış bir admin" ihtiyacı duyar. */
+export async function createAuthenticatedAdmin(): Promise<{ admin: TestAdmin; token: string }> {
+  const admin = await createAdminUser()
+  const token = await createAdminSession(admin.id)
+  return { admin, token }
 }

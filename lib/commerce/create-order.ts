@@ -10,7 +10,7 @@
  * Bu modül yalnızca bir servis fonksiyonu ihraç eder (`createOrder`) — henüz
  * hiçbir API route/server action buna bağlanmadı (bu turun bilinçli sınırı).
  */
-import { PaymentStatus, OrderStatus, Prisma } from "../generated/prisma/client"
+import { PaymentStatus, OrderStatus } from "../generated/prisma/client"
 import type { Prisma as PrismaNS, PrismaClient } from "../generated/prisma/client"
 import { prisma } from "../prisma"
 import { checkoutInputSchema, type CheckoutInput, type CheckoutItemInput } from "./checkout-schema"
@@ -22,7 +22,7 @@ import { buildOrderItemCreateInputs } from "./order-items"
 import { buildReservationCreateInputs } from "./reservations"
 import { generateOrderNumber } from "./order-number"
 import { RESERVATION_WINDOW_HOURS } from "./constants"
-import { CommerceError, IdempotencyKeyConflictError } from "./errors"
+import { CommerceError, IdempotencyKeyConflictError, isUniqueConstraintViolation } from "./errors"
 
 type OrderWithItems = PrismaNS.OrderGetPayload<{ include: { items: true } }>
 
@@ -212,15 +212,6 @@ async function generateUniqueOrderNumber(tx: PrismaNS.TransactionClient): Promis
     if (!clash) return candidate
   }
   throw new CommerceError("Benzersiz sipariş numarası üretilemedi, lütfen tekrar deneyin")
-}
-
-function isUniqueConstraintViolation(error: unknown, targetField: string): boolean {
-  return (
-    error instanceof Prisma.PrismaClientKnownRequestError &&
-    error.code === "P2002" &&
-    Array.isArray((error.meta as { target?: unknown[] } | undefined)?.target) &&
-    ((error.meta as { target: unknown[] }).target as string[]).includes(targetField)
-  )
 }
 
 function toResult(order: OrderWithItems): CreateOrderResult {

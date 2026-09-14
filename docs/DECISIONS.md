@@ -169,6 +169,48 @@ Bir karar burada yer aldığında, aynı konudaki OPEN madde `docs/OPEN_QUESTION
 - **Etkilenen modüller:** Category/Collection şeması (join table yalnızca Collection için), storefront navigasyon ve filtreleme.
 - **Yeniden değerlendirme koşulu:** Kalıcı bir mimari karardır.
 
+### D024 — Ürün görsellerinin object storage'da saklanması
+- **Karar:** Gerçek ürün fotoğrafları sunucunun yerel dosya sisteminde veya veritabanında binary olarak değil, bir object storage servisinde (S3 / Cloudflare R2 / Vercel Blob vb.) saklanacak. `ProductImage.url` bu servisteki nesneye işaret eder. Admin panelinden yapılan normal ürün fotoğrafı yüklemelerinde `isPlaceholder` değeri `false` olarak yazılır.
+- **Durum:** Kesinleşti (somut servis sağlayıcısı seçimi OPEN)
+- **Neden:** Proje sahibi tarafından doğrudan onaylandı. Next.js'in yaygın dağıtım hedeflerinin çoğunda dosya sistemi geçicidir; çalışma anında `public/uploads` benzeri bir klasöre yazılan fotoğraflar yeniden deploy'da veya çoklu instance'ta kaybolur — bu, gerçek bir veri kaybı riskidir. Veritabanında binary saklamak ise yedek boyutunu ve sorgu maliyetini gereksiz büyütür.
+- **Etkilenen modüller:** Admin ürün görsel yükleme akışı, ProductImage veri modeli, storefront görsel sunumu, ortam değişkeni/secret yönetimi (storage kimlik bilgileri repoya girmez, bkz. `docs/PROJECT_BRIEF.md` Bölüm 16).
+- **Yeniden değerlendirme koşulu:** Saklama *yöntemi* kalıcı bir karardır; hangi somut servisin kullanılacağı (R2/S3/Blob) hosting kararıyla birlikte netleşecektir. Bu karar `docs/OPEN_QUESTIONS.md` #11'i (görselleri kim sağlayacak) kapatmaz — tedarik kaynağı ayrı bir sorudur.
+
+### D025 — Admin kimlik doğrulama: kendi oturum sistemi + veritabanında AdminUser
+- **Karar:** Admin girişi üçüncü taraf bir kimlik servisine (Clerk/Auth0 vb.) bağlanmayacak; parola hash'i ve oturumu proje kendi içinde yönetecek. Admin hesabı ortam değişkeninde sabit tutulmayacak, veritabanında bir `AdminUser` kaydı olarak saklanacak. Bu sayede işletme sahibi parolasını geliştirici müdahalesi ve yeniden deploy olmadan değiştirebilir.
+- **Durum:** Kesinleşti
+- **Neden:** Proje sahibi tarafından doğrudan onaylandı; tek admin rolü (D005) için harici bir kimlik sağlayıcısının maliyeti ve dışarıda kimlik saklama riski gerekçesiz, ortam değişkeni yaklaşımı ise parola değişimini kalıcı olarak geliştiriciye bağımlı kılardı.
+- **Etkilenen modüller:** Admin kimlik doğrulama modülü, Prisma şeması (yeni `AdminUser` modeli), admin route guard/middleware (bkz. `docs/ARCHITECTURE.md` §5.1), ortam değişkeni yönetimi (oturum imza secret'ı).
+- **Yeniden değerlendirme koşulu:** D005 değişir ve panele birden fazla kişi farklı yetkilerle erişmesi gerekirse, `AdminUser` modeli rol alanıyla genişletilir — saklama yerinin kendisi (veritabanı) değişmez.
+
+### D026 — Video 07 admin kapsamı: sipariş durumu ve kargo takibi dahil, ödeme onayı hariç
+- **Karar:** Admin panelinin ilk sürümünde sipariş durumu değiştirme (`Order.orderStatus`) ve kargo takip kodu girme yer alacaktır. Ödeme onayı (`Order.paymentStatus`), Shopier entegrasyonu ve Havale/EFT eşleştirme mantığı bu kapsamın dışındadır ve sonraki geliştirme dalgasına bırakılmıştır.
+- **Durum:** Kesinleşti
+- **Neden:** Proje sahibi tarafından doğrudan onaylandı. `docs/PROJECT_BRIEF.md` Bölüm 11 bu iki yeteneği MVP admin kapsamına dahil ediyordu ve şemada `orderStatus` ile `paymentStatus` zaten kasıtlı olarak birbirinden bağımsız alanlardır (bkz. `docs/ARCHITECTURE.md` §3) — dolayısıyla sipariş/kargo yönetimi, ödeme entegrasyonunu beklemek zorunda değildir. Ödeme tarafının ayrı bırakılması D007/D009/D010 ile tutarlıdır.
+- **Etkilenen modüller:** Admin sipariş listesi/detayı, Order veri modeli (kargo takip alanları), sipariş durumu geçiş iş mantığı, stok rezervasyon serbest bırakma (D018 — iptal edilen siparişin aktif rezervasyonları serbest bırakılmalıdır).
+- **Yeniden değerlendirme koşulu:** Ödeme onayı akışı geliştirildiğinde `paymentStatus` yönetimi de panele eklenir; bu karar yalnızca sıralamayı belirler, nihai kapsamı daraltmaz.
+
+### D027 — Variant SKU'su otomatik üretilir, admin değiştirebilir
+- **Karar:** Yeni bir varyant oluşturulduğunda SKU sistem tarafından otomatik üretilir; admin isterse üretilen değeri düzenleyebilir. SKU benzersizliği veritabanı seviyesinde zorunludur (D019 gereği SKU yalnızca Variant seviyesindedir).
+- **Durum:** Kesinleşti
+- **Neden:** Proje sahibi tarafından doğrudan onaylandı; otomatik üretim ürün girişini hızlandırır ve boş/çakışan SKU riskini azaltırken, düzenlenebilir olması markanın kendi mevcut ürün kodlama sistemini kullanmasına engel olmaz.
+- **Etkilenen modüller:** Admin varyant formu, SKU üretim yardımcı fonksiyonu, Variant şeması (alanın kendisi değişmez).
+- **Yeniden değerlendirme koşulu:** Marka kalıcı ve katı bir kodlama standardı benimserse otomatik üretim biçimi bu standarda göre ayarlanabilir.
+
+### D028 — Öznitelik tipleri ve değerleri admin tarafından yönetilebilir
+- **Karar:** Admin yalnızca mevcut öznitelik tiplerine yeni değer eklemekle sınırlı olmayacak; yeni `AttributeDefinition` (öznitelik tipi) da oluşturabilecektir. Yani hem tip hem değer yönetimi panelden yapılabilir, geliştirici müdahalesi gerekmez.
+- **Durum:** Kesinleşti
+- **Neden:** Proje sahibi tarafından doğrudan onaylandı; kesin öznitelik listesi hâlâ açıktır (`docs/OPEN_QUESTIONS.md` #4) ve katalog büyüdükçe yeni tip ihtiyacı çıkması beklenir. Şema bu kararı zaten destekleyecek şekilde tasarlanmıştır — `AttributeDefinition.key` bir Prisma enum'u değil serbest bir String'tir, dolayısıyla yeni tip eklemek migration değil yalnızca yeni bir satırdır.
+- **Etkilenen modüller:** Admin öznitelik yönetimi ekranı, admin varyant formu, AttributeDefinition/AttributeValue iş mantığı.
+- **Yeniden değerlendirme koşulu:** Kalıcı bir karardır. Kullanımda olan bir öznitelik tipinin silinmesi veritabanı kısıtlarıyla (VariantAttributeValue/ProductAttributeValue üzerindeki restrict davranışı) zaten engellenir; bu koruma kaldırılmaz.
+
+### D029 — Ürün ve varyantlarda kalıcı silme yok, yaşam döngüsü durumla yönetilir
+- **Karar:** Admin panelinde ürün veya varyant için kalıcı silme (hard delete) işlemi sunulmayacaktır. Ürün yaşam döngüsü yalnızca D021'deki DRAFT / PUBLISHED / ARCHIVED durumlarıyla yönetilir; satıştan kaldırma işlemi ARCHIVED durumuna geçirmek demektir.
+- **Durum:** Kesinleşti
+- **Neden:** Proje sahibi tarafından doğrudan onaylandı; sipariş geçmişi `OrderItem` üzerinden varyanta referans verdiği için kalıcı silme geçmiş siparişleri bozma veya kayıt kaybı riski taşır. Veritabanı bu riski kısmen zaten engeller (sipariş geçmişi olan bir varyantın silinmesi kısıtla reddedilir), ancak hiç siparişi olmayan kayıtlar için koruma uygulama katmanında bu kararla sağlanır.
+- **Etkilenen modüller:** Admin ürün/varyant yönetimi, storefront görünürlük mantığı (ARCHIVED zaten müşteriye gösterilmez).
+- **Yeniden değerlendirme koşulu:** Kalıcı bir veri bütünlüğü kararıdır; yeniden değerlendirilmesi beklenmez.
+
 ---
 
 ## Özet Tablo
@@ -198,3 +240,9 @@ Bir karar burada yer aldığında, aynı konudaki OPEN madde `docs/OPEN_QUESTION
 | D021 | Ürün görünürlüğü (DRAFT/PUBLISHED/ARCHIVED) stoktan bağımsız | Kesinleşti |
 | D022 | Guest sepet client-side, sunucu fiyat/stok/tutarı yeniden doğrular | Kesinleşti |
 | D023 | Category tekil, Collection çoktan-çoğa ilişki | Kesinleşti |
+| D024 | Ürün görselleri object storage'da; normal upload'da isPlaceholder=false | Kesinleşti (servis seçimi OPEN) |
+| D025 | Admin auth: kendi oturum sistemi + veritabanında AdminUser | Kesinleşti |
+| D026 | Video 07 admin kapsamı: sipariş durumu + kargo takibi dahil, ödeme onayı hariç | Kesinleşti |
+| D027 | Variant SKU otomatik üretilir, admin değiştirebilir | Kesinleşti |
+| D028 | Öznitelik tipi ve değeri admin tarafından yönetilebilir | Kesinleşti |
+| D029 | Hard delete yok; yaşam döngüsü DRAFT/PUBLISHED/ARCHIVED ile | Kesinleşti |

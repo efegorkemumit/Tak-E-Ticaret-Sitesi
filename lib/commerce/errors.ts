@@ -8,6 +8,45 @@
  * route katmanının işidir — bu tur route yazmıyor, yalnızca servis hatasını
  * tanımlıyor.
  */
+import { Prisma } from "../generated/prisma/client"
+
+/**
+ * P2002 (unique constraint) hatasının BELİRLİ bir alana ait olup olmadığını
+ * kontrol eder — "önce SELECT et, sonra INSERT et" (yarış koşulu taşır)
+ * yerine "dene, çakışırsa yakala" deseninin ortak yardımcı fonksiyonu.
+ * `create-order.ts`'te idempotency key çakışması için kurulan desenin
+ * genelleştirilmiş hâli — Wave B'de `lib/admin/` (slug/SKU/sortOrder
+ * benzersizliği için) de bunu kullanır, aynı formülün ikinci bir kopyası
+ * yazılmaz.
+ *
+ * GERÇEK REGRESYON DÜZELTMESİ (Wave B sırasında gerçek eşzamanlı bir
+ * `orderIdempotencyKey` çakışması test edilerek bulundu — bkz. takım
+ * raporu): `@prisma/adapter-pg` + Prisma 7.10 ile P2002 hatasının
+ * `error.meta.target` (alan adı dizisi) ALANI ARTIK DOLMUYOR; bunun yerine
+ * ham Postgres kısıt adı `error.meta.driverAdapterError.cause.constraint.index`
+ * altında geliyor (ör. `"Order_orderIdempotencyKey_key"`). Bu fonksiyon
+ * ESKİ şekli hâlâ destekler (başka bir Prisma/adapter kombinasyonunda geri
+ * dönebilir diye) ve YENİ şekli de kontrol eder — Prisma'nın `@unique`/
+ * `@@unique` için varsayılan adlandırma kuralı `<Model>_<alan(lar)>_key`
+ * olduğundan, hedef alan adının kısıt adının bir alt dizesi olması
+ * güvenilir bir sinyaldir (gerçek DB'ye karşı doğrulandı).
+ */
+export function isUniqueConstraintViolation(error: unknown, targetField: string): boolean {
+  if (!(error instanceof Prisma.PrismaClientKnownRequestError) || error.code !== "P2002") {
+    return false
+  }
+
+  const meta = error.meta as
+    | { target?: unknown; driverAdapterError?: { cause?: { constraint?: { index?: unknown } } } }
+    | undefined
+
+  if (Array.isArray(meta?.target) && (meta.target as unknown[]).includes(targetField)) {
+    return true
+  }
+
+  const constraintIndex = meta?.driverAdapterError?.cause?.constraint?.index
+  return typeof constraintIndex === "string" && constraintIndex.includes(targetField)
+}
 
 export class CommerceError extends Error {
   constructor(message: string) {

@@ -31,6 +31,7 @@ export {
   ProductNotPurchasableError,
   InsufficientStockError,
   IdempotencyKeyConflictError,
+  isUniqueConstraintViolation,
 } from "./errors"
 
 // Katalog read layer (VIDEO 06 STEP 4) — yalnızca DB sorgulayan fonksiyonlar.
@@ -54,3 +55,8 @@ export type {
   CatalogTaxonomyDto,
   AvailabilityStatus,
 } from "./catalog"
+
+// D018'in TEK paylaşılan kullanılabilir-stok formülü (bkz. `availability.ts`
+// başlık yorumu) — Wave B'de `lib/admin/` (stok ekranı, varyant oluşturma)
+// bunu tüketir, ikinci bir kopyasını YAZMAZ.
+export { getAvailableQuantities } from "./availability"

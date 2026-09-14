@@ -194,6 +194,14 @@ model ProductImage {
 
   isPlaceholder Boolean @default(true)
 
+  /// Object storage'daki nesnenin anahtarı (D024) — admin panelinden yapılan
+  /// gerçek upload'larda dolar. `url` her zaman gösterim için kullanılan alan
+  /// olmaya devam eder; `storageKey`, silme/yeniden adlandırma gibi storage
+  /// işlemlerinde adapter'a geçilen içsel referanstır (bkz. `lib/storage/`).
+  /// Seed/placeholder görsellerde (bir object storage nesnesine karşılık
+  /// gelmediği için) bilinçli olarak NULL kalır.
+  storageKey String?
+
   /// Galeri sırası — küçükten büyüğe, 0 ilk gösterilen görsel.
   sortOrder Int @default(0)
 
@@ -357,6 +365,19 @@ model Order {
   /// checkout etkisi hâlâ OPEN, `docs/PROJECT_BRIEF.md` Bölüm 10).
   giftPackagingSelected Boolean @default(false)
 
+  /// D026 — Video 07 admin kapsamına dahil kargo takibi. Ödeme sağlayıcısı/
+  /// entegrasyonu ile İLİŞKİSİZDİR (bkz. `docs/DECISIONS.md` D026); yalnızca
+  /// admin panelinin sipariş detayında serbest metin olarak girdiği bilgidir.
+  /// Kargo firmasına özgü bir format doğrulaması bilinçli olarak YOKTUR
+  /// (`docs/OPEN_QUESTIONS.md` #5 hâlâ OPEN, bu alan o kararı kilitlemez).
+  shippingCarrier String?
+  trackingNumber  String?
+  /// Admin kargo takip kodu girdiğinde/`orderStatus` SHIPPED'e geçtiğinde set
+  /// edilmesi beklenir — bu alanın kendisi bir durum geçişini ZORLAMAZ, yalnızca
+  /// audit amaçlı bir zaman damgasıdır (durum geçiş iş mantığı bu turun kapsamı
+  /// dışında, admin domain servisleri Wave B'nin konusu).
+  shippedAt DateTime?
+
   paymentMethod PaymentMethod
   /// Payments'tan gelen jenerik sinyal — Order'ın kendi orderStatus'undan
   /// KASITLI OLARAK ayrı (bkz. `docs/ARCHITECTURE.md` §3, §7).
@@ -440,5 +461,50 @@ model InventoryReservation {
 
   @@index([variantId, status])
   @@index([orderId])
+  @@index([expiresAt])
+}
+
+// -----------------------------------------------------------------------------
+// Admin kimlik doğrulama (D005 — tek temel admin rolü, D025 — kendi oturum
+// sistemi + veritabanında AdminUser)
+// -----------------------------------------------------------------------------
+
+/// D025 — admin hesabı bir ortam değişkeninde sabit tutulmaz, veritabanında
+/// bir kayıt olarak saklanır; böylece işletme sahibi parolasını geliştirici
+/// müdahalesi/yeniden deploy olmadan değiştirebilir. D005 gereği bilinçli
+/// olarak bir rol alanı YOKTUR — tek temel admin rolü.
+model AdminUser {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  lastLoginAt  DateTime?
+
+  sessions AdminSession[]
+}
+
+/// Sunucu tarafında gerçekten iptal edilebilir (revocable) oturum — bu, D025
+/// kararının "logout gerçek bir iptal yapabilmeli" gereksinimini karşılar.
+/// Ham (plaintext) oturum token'ı ASLA burada saklanmaz; yalnızca SHA-256
+/// hash'i (`tokenHash`) saklanır, böylece bu tabloyu okuyabilen biri (ör. bir
+/// DB sızıntısı/yedek erişimi) tek başına geçerli bir oturumu ele geçiremez
+/// (bkz. `lib/auth/session.ts`).
+model AdminSession {
+  id String @id @default(cuid())
+
+  adminUserId String
+  adminUser   AdminUser @relation(fields: [adminUserId], references: [id], onDelete: Cascade)
+
+  tokenHash String @unique
+
+  expiresAt  DateTime
+  createdAt  DateTime  @default(now())
+  /// NULL = hâlâ geçerli. Dolu = logout veya başka bir nedenle iptal edildi;
+  /// bu satır, `tokenHash` ile eşleşen ham token tekrar sunulsa bile artık
+  /// kabul edilmez (bkz. `getCurrentAdmin`).
+  revokedAt  DateTime?
+
+  @@index([adminUserId])
   @@index([expiresAt])
 }

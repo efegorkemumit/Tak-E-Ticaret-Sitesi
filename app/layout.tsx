@@ -1,9 +1,5 @@
 import type { Metadata } from "next";
 import { Newsreader, Public_Sans, Geist_Mono } from "next/font/google";
-import { SiteHeader } from "@/components/site-header";
-import { SiteFooter } from "@/components/site-footer";
-import { CartProvider } from "@/lib/cart/cart-context";
-import { ToastProvider } from "@/components/ui/toast";
 import "./globals.css";
 
 /*
@@ -35,27 +31,29 @@ const geistMono = Geist_Mono({
 });
 
 // PLACEHOLDER metadata — marka adı OPEN #1, final başlık/açıklama marka kimliği
-// netleşince güncellenecektir.
+// netleşince güncellenecektir. Bu, sitenin genel/varsayılan metadata'sıdır —
+// admin (`app/admin/layout.tsx`) kendi `title`/`robots`'unu ayrıca override eder.
 export const metadata: Metadata = {
   title: "[Marka Adı] — Takı Mağazası (Geliştirme)",
   description: "Takı e-ticaret sitesi — geliştirme aşaması, henüz nihai içerik değildir.",
 };
 
+/**
+ * VIDEO 07 WAVE B-1 — bu dosya artık yalnızca gerçekten GLOBAL olanı taşır:
+ * `<html>`/`<body>`, font tanımları, `globals.css`, varsayılan metadata.
+ * `SiteHeader`/`SiteFooter`/`CartProvider`/`ToastProvider` buradan
+ * `app/(storefront)/layout.tsx`'e taşındı — admin panelinin bunlara ihtiyacı
+ * yok (`CartProvider` admin'de anlamsız, public `SiteHeader` admin'de kafa
+ * karıştırıcı). `app/error.tsx` kök seviyede kalır (bu `<html>`/`<body>`'yi
+ * koruduğumuz için hâlâ çalışır).
+ */
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="tr"
       className={`${displayFont.variable} ${bodyFont.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="flex min-h-full flex-col">
-        <ToastProvider>
-          <CartProvider>
-            <SiteHeader />
-            <main className="flex flex-1 flex-col">{children}</main>
-            <SiteFooter />
-          </CartProvider>
-        </ToastProvider>
-      </body>
+      <body className="flex min-h-full flex-col">{children}</body>
     </html>
   );
 }

@@ -43,3 +43,8 @@ yarn-error.log*
 next-env.d.ts
 
 /lib/generated/prisma
+
+# yerel storage adaptörü (D024) — gerçek object storage credential'ı yokken
+# admin görsel yüklemelerinin repo DIŞINDA, geçici olarak yazıldığı klasör.
+# bkz. lib/storage/local-adapter.ts.
+/.local-uploads
