@@ -1,6 +1,7 @@
 import { Shapes } from "lucide-react"
 import { listAttributeDefinitionsForAdmin } from "@/lib/admin"
 import { AdminPageHeader } from "@/components/admin/page-header"
+import { AdminFormSection } from "@/components/admin/form-section"
 import { AttributeDefinitionForm } from "@/components/admin/attribute-definition-form"
 import { AttributeValueForm } from "@/components/admin/attribute-value-form"
 import { EmptyState } from "@/components/ui/empty-state"
@@ -14,19 +15,24 @@ export const dynamic = "force-dynamic"
  * ekranda YOKTUR — o ayrım bir değerin bir varyanta mı yoksa bir ürüne mi
  * bağlandığı (`products/[id]` sayfasındaki varyant/açıklayıcı öznitelik
  * formları) anında kurulur, tipin/değerin kendisinde değil.
+ *
+ * VIDEO 08 STEP 3 (part 2) — Kategori/Koleksiyon'la AYNI kart/tipografi
+ * dili (`AdminFormSection`, `EmptyState`), ama BİLİNÇLİ OLARAK aynı
+ * "tıklanabilir satır → düzenleme sayfası" yapısında DEĞİL: `lib/admin/
+ * attributes.ts`'te bir `updateAttributeDefinition`/silme fonksiyonu YOK
+ * (kasıtlı, dosya başı yorumu) — gidilecek bir düzenleme sayfası zaten
+ * yok, bu yüzden kartlar liste + inline "değer ekle" formu olarak kalıyor.
  */
 export default async function AdminAttributesPage() {
   const definitions = await listAttributeDefinitionsForAdmin()
 
   return (
-    <div className="flex flex-col gap-8">
-      <div>
-        <AdminPageHeader title="Öznitelikler" description="Ürün/varyant seçiminde kullanılan öznitelik tipleri ve değerleri." />
-        <div className="rounded-md border border-border p-4">
-          <h3 className="mb-3 text-sm font-medium text-foreground">Yeni Öznitelik Tipi</h3>
-          <AttributeDefinitionForm action={createAttributeDefinitionAction} />
-        </div>
-      </div>
+    <div className="flex flex-col gap-6">
+      <AdminPageHeader title="Öznitelikler" description="Ürün/varyant seçiminde kullanılan öznitelik tipleri ve değerleri." />
+
+      <AdminFormSection title="Yeni Öznitelik Tipi">
+        <AttributeDefinitionForm action={createAttributeDefinitionAction} />
+      </AdminFormSection>
 
       {definitions.length === 0 ? (
         <EmptyState
@@ -36,18 +42,13 @@ export default async function AdminAttributesPage() {
           className="py-10"
         />
       ) : (
-        <div className="flex flex-col gap-4">
+        <div className="grid gap-4 sm:grid-cols-2">
           {definitions.map((definition) => (
-            <div key={definition.id} className="rounded-md border border-border p-4">
-              <div className="mb-3 flex flex-wrap items-baseline gap-2">
-                <h3 className="text-sm font-medium text-foreground">{definition.label}</h3>
-                <span className="text-xs text-muted-foreground">{definition.key}</span>
-              </div>
-
+            <AdminFormSection key={definition.id} title={definition.label} description={definition.key}>
               {definition.values.length === 0 ? (
-                <p className="mb-3 text-sm text-muted-foreground">Henüz değer eklenmedi.</p>
+                <p className="text-sm text-muted-foreground">Henüz değer eklenmedi.</p>
               ) : (
-                <ul className="mb-3 flex flex-wrap gap-2">
+                <ul className="flex flex-wrap gap-2">
                   {definition.values.map((value) => (
                     <li
                       key={value.id}
@@ -60,7 +61,7 @@ export default async function AdminAttributesPage() {
               )}
 
               <AttributeValueForm attributeDefinitionId={definition.id} action={createAttributeValueAction} />
-            </div>
+            </AdminFormSection>
           ))}
         </div>
       )}

@@ -4,6 +4,7 @@ import { cn } from "cn"
 import type { CatalogProductDto } from "@/lib/commerce/catalog"
 import { getPriceSummary, isProductOutOfStock } from "@/lib/commerce/catalog-display"
 import { getPlaceholderImage } from "@/lib/placeholder-image"
+import { ImageBadge } from "@/components/image-badge"
 import { PriceDisplay } from "./price-display"
 
 /**
@@ -43,19 +44,22 @@ function ProductCard({ product, className }: { product: CatalogProductDto; class
           // ürün fotoğrafları (jpg/png/webp) geldiğinde bu koşul devre dışı kalır.
           unoptimized={image.url.endsWith(".svg")}
         />
-        {image.isPlaceholder && (
-          <span className="absolute left-2 top-2 rounded-full bg-background/90 px-2 py-0.5 text-[0.7rem] text-muted-foreground">
-            Örnek görsel
-          </span>
-        )}
+        {image.isPlaceholder && <ImageBadge>Örnek görsel</ImageBadge>}
         {outOfStock && (
-          <span className="absolute right-2 top-2 rounded-full bg-background/90 px-2 py-0.5 text-[0.7rem] text-muted-foreground">
+          // VIDEO 08 STEP 2 düzeltmesi (team lead'in final review bulgusu):
+          // dar kartlarda (mobil 2 sütun, ~163px) "Örnek görsel" (sol üst) ve
+          // "Tükendi" (sağ üst) aynı satırda çakışıyor, ikisi de kesiliyordu.
+          // Köşegen karşıt köşeye (sağ ALT) taşındı — kart genişliğinden
+          // BAĞIMSIZ olarak asla çakışmaz, stok durumu her zaman tam okunur
+          // kalır (satılamaz bir ürünün "Tükendi" bilgisi rozet estetiğinden
+          // önceliklidir).
+          <span className="absolute right-2 bottom-2 rounded-full bg-background/90 px-2 py-0.5 text-metadata text-muted-foreground lg:text-metadata-lg">
             Tükendi
           </span>
         )}
       </div>
-      <div className="flex flex-col gap-1 transition-opacity group-hover/product-card:opacity-70">
-        <p className="text-sm text-foreground">{product.name}</p>
+      <div className="flex flex-col gap-1.5 transition-opacity group-hover/product-card:opacity-70">
+        <p className="text-product-title font-medium text-foreground lg:text-product-title-lg">{product.name}</p>
         <PriceDisplay price={Number(price.displayPrice)} size="sm" />
       </div>
     </Link>

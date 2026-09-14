@@ -61,6 +61,149 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
+/*
+ * VIDEO 08 STEP 3 — admin panel semantic renk/tipografi token'ları.
+ * `docs/DESIGN_DIRECTION.md`'nin "Ek: Admin Panel Redesign Spesifikasyonu"
+ * bölümüyle BİREBİR: admin AYRI bir renk ölçeği KURMUYOR, storefront'un
+ * mevcut oklch tabanını (`--background`/`--foreground`/`--border`/`--surface`/
+ * `--surface-muted`/`--muted-foreground`) aynen tüketiyor — yalnızca üç
+ * durum token'ı YENİ: `--success`/`--warning` (storefront'ta hiç yoktu,
+ * trafik-ışığı durum göstergesi gerekmiyordu) ve `--danger` (mevcut
+ * `--destructive`'e alias, yeni bir kırmızı İCAT EDİLMEDİ).
+ *
+ * Spec'in "accent" satırı (`var(--primary)`) için BİLİNÇLİ SAPMA: yeni bir
+ * `--accent`/`--color-accent` TANIMLAMADIM — bu isim zaten shadcn'in kendi
+ * `--color-accent`'ıyla (yukarıdaki `@theme inline` bloğu, `var(--accent)` —
+ * TAMAMEN FARKLI bir açık-nötr hover tonu, storefront'un component state'leri
+ * bunu kullanıyor) ÇAKIŞIRDI; üzerine yazmak storefront'u BOZARDI (bu turun
+ * yasağı). Spec'in "accent" niyeti zaten `var(--primary)` OLDUĞU için admin
+ * component'leri doğrudan mevcut `bg-primary`/`text-primary`/`border-primary`/
+ * `ring-ring` utility'lerini kullanıyor — yeni bir token GEREKMEDİ.
+ */
+:root {
+  --success: oklch(0.55 0.14 150);
+  --warning: oklch(0.75 0.15 80);
+  --danger: var(--destructive);
+}
+
+@theme inline {
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-danger: var(--danger);
+
+  /*
+   * Admin tipografi ölçeği — `docs/DESIGN_DIRECTION.md` admin tablosuyla
+   * BİREBİR. Storefront'un AYNI isimli token'larından (`text-page-title` vb.,
+   * 32-40px display serif) BİLİNÇLİ OLARAK FARKLI adlar (`admin-*` öneki):
+   * değerler tamamen farklı (24px sans/600 vb.) — aynı ismi paylaşmak ya
+   * storefront'u ya admin'i yanlış boyuta sürüklerdi. `--font-display`
+   * admin'de HİÇ kullanılmaz (spec'in kesin kuralı) — bu yüzden bu token'lar
+   * font-family belirtmez, tüketen component `font-sans` (varsayılan, zaten
+   * `--font-body`'ye eşlenik) ile birlikte kullanır.
+   */
+  --text-admin-page-title: 1.5rem;
+  --text-admin-page-title--line-height: 1.3;
+  --text-admin-section-title: 1.125rem;
+  --text-admin-section-title--line-height: 1.4;
+  --text-admin-table-header: 0.75rem;
+  --text-admin-table-header--line-height: 1.4;
+  --text-admin-table-cell: 0.875rem;
+  --text-admin-table-cell--line-height: 1.4;
+  --text-admin-kpi-value: 1.875rem;
+  --text-admin-kpi-value--line-height: 1.2;
+  --text-admin-kpi-label: 0.8125rem;
+  --text-admin-kpi-label--line-height: 1.3;
+  --text-admin-helper: 0.8125rem;
+  --text-admin-helper--line-height: 1.4;
+}
+
+/*
+ * DÜZELTME (final inceleme) — admin tablolarının yatay kaydırma gerektirdiği
+ * dar/orta genişliklerde (ör. bazı dizüstü/tablet genişlikleri) hiçbir görsel
+ * ipucu yoktu: içerik sessizce kırpılıyordu, ne kısmi bir sütun, ne scrollbar
+ * görünüyordu (`orders-1024` bulgusu). Bu, üç meşru çözümden ("kart eşiğini
+ * yükselt" · "görünür ipucuyla yatay kaydırma" · "sidebar'ı daralt") İKİNCİSİ.
+ *
+ * Önce native scrollbar'ı kalıcı/görünür yapmayı denedim (`scrollbar-width`/
+ * `scrollbar-color`) — ama bu, işletim sistemi/tarayıcının overlay-scrollbar
+ * davranışına bağlı kalıyor (tam da şikâyetin kök nedeni) ve gerçek Chromium'da
+ * test ettiğimde GÜVENİLİR biçimde görünmedi. Bunun yerine JS GEREKTİRMEYEN,
+ * tarayıcı/OS ayarından bağımsız, iyi bilinen "CSS scroll shadow" deseni
+ * kullanıldı: sağda/solda kaydırılacak İÇERİK olduğu sürece bir gölge/gradyan
+ * görünür, içerik o yöne tam kaydırıldığında gölge kendiliğinden kaybolur —
+ * `background-attachment: local` (içerikle birlikte kayan "örtü" katmanı) ile
+ * `scroll` (sabit "gölge" katmanı) katmanlarının üst üste binmesiyle çalışır.
+ */
+.admin-table-scroll {
+  background-repeat: no-repeat;
+  background-color: var(--background);
+  background-image:
+    linear-gradient(to right, var(--background) 40%, transparent),
+    linear-gradient(to left, var(--background) 40%, transparent),
+    linear-gradient(to right, rgba(0, 0, 0, 0.1), transparent),
+    linear-gradient(to left, rgba(0, 0, 0, 0.1), transparent);
+  background-position: left center, right center, left center, right center;
+  background-size: 24px 100%, 24px 100%, 10px 100%, 10px 100%;
+  background-attachment: local, local, scroll, scroll;
+}
+
+/*
+ * VIDEO 08 STEP 2 — konteyner + tipografi TOKEN sistemi. Audit'in kök bulgusu
+ * her sayfanın kendi `mx-auto max-w-Nxl px-4 sm:px-6`'ını elle yazması, header/
+ * footer/sayfa içeriğinin ÜÇ farklı kapsayıcı genişliğine sahip olmasıydı.
+ * Artık TEK kaynak burası: `--container-*` Tailwind v4'ün max-width ölçeği
+ * namespace'idir (`max-w-7xl` vb.'nin geldiği yer) — yeni isimli girişler
+ * eklemek gerçek `max-w-page`/`max-w-narrow` utility'leri üretir; `components/
+ * container.tsx` başka hiçbir yerde tekil `max-w-[...]` YAZMADAN bunları
+ * tüketir.
+ *
+ * Tipografi değerleri VIDEO 08'in "Ek: Storefront Redesign Spesifikasyonu"
+ * tablosuyla (docs/DESIGN_DIRECTION.md) BİREBİR aynıdır — burada KEYFİ bir
+ * sayı YAZILMAZ, o tablo tek doğruluk kaynağıdır. Her rol için MOBİL değer
+ * taban token, `-lg` sonekli ikinci token MASAÜSTÜ (`lg:` ≥1024px) değeridir;
+ * component'ler `text-X lg:text-X-lg` ikilisiyle tüketir. `Price` istisna —
+ * masaüstü/mobil değil, mevcut `PriceDisplay` `size` prop'unun (`sm`/`md`/`lg`)
+ * üç kademesine birebir eşlenir (bkz. `price-display.tsx`).
+ *
+ * Değerler PLACEHOLDER'dır (final marka ölçeği hâlâ OPEN) — yalnızca token
+ * adları component'lerde sabit kalır.
+ */
+@theme {
+  --container-page: 87.5rem; /* 1400px */
+  --container-narrow: 48rem; /* 768px — checkout/sepet/sipariş-sonucu gibi tek-kolon akışlar */
+
+  --text-hero: 2.75rem;
+  --text-hero--line-height: 1.05;
+  --text-hero-lg: 4.5rem;
+  --text-hero-lg--line-height: 1.05;
+  --text-page-title: 2rem;
+  --text-page-title--line-height: 1.15;
+  --text-page-title-lg: 2.5rem;
+  --text-page-title-lg--line-height: 1.15;
+  --text-section-title: 1.375rem;
+  --text-section-title--line-height: 1.2;
+  --text-section-title-lg: 1.625rem;
+  --text-section-title-lg--line-height: 1.2;
+  --text-product-title: 0.875rem;
+  --text-product-title--line-height: 1.4;
+  --text-product-title-lg: 0.9375rem;
+  --text-product-title-lg--line-height: 1.4;
+  --text-price-sm: 0.875rem;
+  --text-price-sm--line-height: 1.3;
+  --text-price-md: 1rem;
+  --text-price-md--line-height: 1.3;
+  --text-price-lg: 1.375rem;
+  --text-price-lg--line-height: 1.3;
+  --text-body: 0.9375rem;
+  --text-body--line-height: 1.6;
+  --text-body-lg: 1rem;
+  --text-body-lg--line-height: 1.6;
+  --text-metadata: 0.75rem;
+  --text-metadata--line-height: 1.4;
+  --text-metadata-lg: 0.8125rem;
+  --text-metadata-lg--line-height: 1.4;
+}
+
 :root {
   /*
    * "Açık Alan" yönü gereği: sıcak olmayan, soğuk/nötr gri-beyaz taban + yumuşak
@@ -172,6 +315,17 @@
  * burada component kodu yazılmaz.
  */
 @layer utilities {
+  /* Native scroll-snap kaydırıcılar (`ProductGallery`, `Carousel`) için ortak
+     kaydırma çubuğu gizleme — kaydırma davranışının kendisi tarayıcı native'i
+     (JS kütüphanesi değil), yalnızca görsel gürültüyü kaldırır. */
+  .no-scrollbar {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
   .motion-reveal-once {
     opacity: 0;
     transform: translateY(0.5rem);

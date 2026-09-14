@@ -5,8 +5,8 @@ import {
   listCollectionsForAdmin,
   listAttributeDefinitionsForAdmin,
 } from "@/lib/admin"
-import { AdminPageHeader } from "@/components/admin/page-header"
 import { ProductForm } from "@/components/admin/product-form"
+import { AdminFormSection } from "@/components/admin/form-section"
 import { ProductVariantsSection } from "@/components/admin/product-variants-section"
 import { ProductImagesSection } from "@/components/admin/product-images-section"
 import { ProductDescriptiveAttributesSection } from "@/components/admin/product-descriptive-attributes-section"
@@ -28,10 +28,14 @@ export const dynamic = "force-dynamic"
 
 /**
  * Ürünün TÜM yönetimi (temel bilgiler + varyant/stok + görsel + açıklayıcı
- * öznitelik) tek bir sayfada, ayrı bölümler halinde — team lead'in
- * talimatındaki ekran listesine karşılık gelir. Her bölüm kendi Server
+ * öznitelik) tek bir sayfada, ayrı bölümler halinde. Her bölüm kendi Server
  * Action'larını çağırır; sayfa yalnızca `getProductForAdmin` ile GÜNCEL
  * veriyi bir arada toplar.
+ *
+ * VIDEO 08 STEP 3 (part 2) — genişlik `max-w-[1200px]` (brand-ui'nin form
+ * deseni spesifikasyonu). Sayfa başlığı artık `ProductForm`'un kendi içinde
+ * (Kaydet butonuyla birlikte, header'da) render ediliyor — bkz. o dosyadaki
+ * gerekçe notu.
  */
 export default async function EditAdminProductPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -44,20 +48,18 @@ export default async function EditAdminProductPage({ params }: { params: Promise
   if (!product) notFound()
 
   return (
-    <div className="flex flex-col gap-10">
-      <div>
-        <AdminPageHeader title={product.name} description="Temel bilgiler" />
-        <ProductForm
-          mode="edit"
-          categories={categories}
-          collections={collections}
-          initialValues={product}
-          action={updateProductAction}
-        />
-      </div>
+    <div className="mx-auto flex max-w-[1200px] flex-col gap-6">
+      <ProductForm
+        mode="edit"
+        pageTitle={product.name}
+        pageDescription="Ürün bilgilerini, varyantlarını ve görsellerini yönet."
+        categories={categories}
+        collections={collections}
+        initialValues={product}
+        action={updateProductAction}
+      />
 
-      <section>
-        <h3 className="mb-3 font-display text-lg text-foreground">Varyantlar ve Stok</h3>
+      <AdminFormSection title="Varyantlar, Fiyat ve Stok">
         <ProductVariantsSection
           productId={product.id}
           variants={product.variants}
@@ -67,10 +69,9 @@ export default async function EditAdminProductPage({ params }: { params: Promise
           updateVariantStockAction={updateVariantStockAction}
           suggestSkuAction={suggestVariantSkuAction}
         />
-      </section>
+      </AdminFormSection>
 
-      <section>
-        <h3 className="mb-3 font-display text-lg text-foreground">Görseller</h3>
+      <AdminFormSection title="Görseller">
         <ProductImagesSection
           productId={product.id}
           images={product.images}
@@ -79,10 +80,9 @@ export default async function EditAdminProductPage({ params }: { params: Promise
           reorderAction={reorderProductImagesAction}
           setMainAction={setMainProductImageAction}
         />
-      </section>
+      </AdminFormSection>
 
-      <section>
-        <h3 className="mb-3 font-display text-lg text-foreground">Açıklayıcı Öznitelikler</h3>
+      <AdminFormSection title="Açıklayıcı Öznitelikler">
         <ProductDescriptiveAttributesSection
           productId={product.id}
           descriptiveAttributes={product.descriptiveAttributes}
@@ -90,7 +90,7 @@ export default async function EditAdminProductPage({ params }: { params: Promise
           addAction={addDescriptiveAttributeAction}
           removeAction={removeDescriptiveAttributeAction}
         />
-      </section>
+      </AdminFormSection>
     </div>
   )
 }

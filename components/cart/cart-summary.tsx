@@ -12,7 +12,7 @@ function CartSummary({ subtotal, itemCount }: { subtotal: number; itemCount: num
         <span className="text-muted-foreground">Ara toplam ({itemCount} ürün)</span>
         <span className="text-foreground">{formatPriceTRY(subtotal)}</span>
       </div>
-      <p className="text-xs text-muted-foreground">
+      <p className="text-metadata text-muted-foreground lg:text-metadata-lg">
         Kargo ücreti ve nihai toplam ödeme adımında hesaplanır.
       </p>
     </div>

@@ -1,4 +1,5 @@
 import type { Metadata } from "next"
+import { Container } from "@/components/container"
 import { OrderSuccessView } from "@/components/checkout/order-success-view"
 
 export const metadata: Metadata = {
@@ -8,8 +9,8 @@ export const metadata: Metadata = {
 
 export default function OrderSuccessPage() {
   return (
-    <div className="mx-auto w-full max-w-4xl px-4 py-10 sm:px-6">
+    <Container size="narrow" className="py-10 lg:py-16">
       <OrderSuccessView />
-    </div>
+    </Container>
   )
 }

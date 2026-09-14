@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input"
 import { FormField } from "@/components/ui/form-field"
 import { Button } from "@/components/ui/button"
 import { ConfirmDialog } from "@/components/admin/confirm-dialog"
+import { AdminDropzone } from "@/components/admin/dropzone"
 import type { AdminActionFailure } from "@/app/admin/(protected)/products/actions"
 
 interface ImageDto {
@@ -95,58 +96,71 @@ function ProductImagesSection({
       {sorted.length > 0 && (
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
           {sorted.map((image, index) => (
-            <div key={image.id} className="flex flex-col gap-2 rounded-md border border-border p-2">
-              {/* eslint-disable-next-line @next/next/no-img-element -- bkz. dosya başı yorumu: D024 OPEN olduğu için next/image bilinçli olarak kullanılmıyor */}
-              <img src={image.url} alt={image.alt} className="aspect-square w-full rounded-sm object-cover" />
+            <div key={image.id} className="flex flex-col gap-2 rounded-lg border border-border p-2">
+              <div className="relative aspect-square w-full overflow-hidden rounded-md bg-surface-muted">
+                {/* eslint-disable-next-line @next/next/no-img-element -- bkz. dosya başı yorumu: D024 OPEN olduğu için next/image bilinçli olarak kullanılmıyor */}
+                <img src={image.url} alt={image.alt} className="size-full object-cover" />
+                {image.sortOrder === 0 && (
+                  <span className="absolute left-2 top-2 flex items-center gap-1 rounded-full bg-background/90 px-2 py-0.5 text-xs font-medium text-foreground">
+                    <Star className="size-3 fill-current" /> Ana görsel
+                  </span>
+                )}
+                {image.isPlaceholder && (
+                  <span className="absolute right-2 top-2 rounded-full bg-background/90 px-2 py-0.5 text-xs text-muted-foreground">
+                    Örnek
+                  </span>
+                )}
+              </div>
               <p className="truncate text-xs text-muted-foreground" title={image.alt}>
                 {image.alt}
               </p>
-              {image.isPlaceholder && <span className="text-xs text-muted-foreground">Örnek görsel</span>}
-              {image.sortOrder === 0 ? (
-                <span className="text-xs font-medium text-foreground">Ana görsel</span>
-              ) : (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  disabled={isSettingMain}
-                  onClick={() => handleSetMain(image.id)}
-                  className="h-9 w-fit gap-1"
-                >
-                  <Star className="size-3.5" /> Ana yap
-                </Button>
-              )}
-              <div className="flex items-center gap-1">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="icon-sm"
-                  aria-label="Yukarı taşı"
-                  disabled={index === 0 || (isReordering && reorderPendingId !== null)}
-                  onClick={() => moveImage(index, -1)}
-                >
-                  <ArrowUp className="size-3.5" />
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="icon-sm"
-                  aria-label="Aşağı taşı"
-                  disabled={index === sorted.length - 1 || (isReordering && reorderPendingId !== null)}
-                  onClick={() => moveImage(index, 1)}
-                >
-                  <ArrowDown className="size-3.5" />
-                </Button>
-                <Button
-                  type="button"
-                  variant="destructive"
-                  size="icon-sm"
-                  aria-label="Görseli sil"
-                  disabled={isDeleting}
-                  onClick={() => setDeleteTargetId(image.id)}
-                >
-                  <Trash2 className="size-3.5" />
-                </Button>
+              <div className="flex items-center justify-between gap-1">
+                {image.sortOrder === 0 ? (
+                  <span className="h-9" />
+                ) : (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    disabled={isSettingMain}
+                    onClick={() => handleSetMain(image.id)}
+                    className="h-9 w-fit gap-1 px-2"
+                  >
+                    <Star className="size-3.5" /> Ana yap
+                  </Button>
+                )}
+                <div className="flex items-center gap-1">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon-sm"
+                    aria-label="Yukarı taşı"
+                    disabled={index === 0 || (isReordering && reorderPendingId !== null)}
+                    onClick={() => moveImage(index, -1)}
+                  >
+                    <ArrowUp className="size-3.5" />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon-sm"
+                    aria-label="Aşağı taşı"
+                    disabled={index === sorted.length - 1 || (isReordering && reorderPendingId !== null)}
+                    onClick={() => moveImage(index, 1)}
+                  >
+                    <ArrowDown className="size-3.5" />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    size="icon-sm"
+                    aria-label="Görseli sil"
+                    disabled={isDeleting}
+                    onClick={() => setDeleteTargetId(image.id)}
+                  >
+                    <Trash2 className="size-3.5" />
+                  </Button>
+                </div>
               </div>
             </div>
           ))}
@@ -223,25 +237,22 @@ function UploadImageForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} noValidate className="flex flex-wrap items-end gap-3 rounded-md border border-border p-4">
-      <FormField label="Görsel Dosyası" className="w-64">
-        {(props) => (
-          <input
-            {...props}
-            ref={fileInputRef}
-            type="file"
-            accept={ACCEPTED_MIME_TYPES.join(",")}
-            className="flex h-11 w-full items-center rounded-md border border-border bg-background text-sm text-foreground file:mr-3 file:h-full file:border-0 file:bg-surface-muted file:px-3 file:text-sm"
-          />
-        )}
-      </FormField>
-      <FormField label="Alt Metni" className="w-56">
-        {(props) => <Input {...props} value={alt} onChange={(e) => setAlt(e.target.value)} placeholder="Ürünü tanımlayan kısa metin" />}
-      </FormField>
-      <Button type="submit" disabled={isPending} className="min-h-11">
-        {isPending ? "Yükleniyor…" : "Görsel Yükle"}
-      </Button>
-      {error && <p className="w-full text-sm text-destructive">{error}</p>}
+    <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-3 rounded-lg border border-border p-4 sm:flex-row sm:items-start">
+      <AdminDropzone
+        ref={fileInputRef}
+        accept={ACCEPTED_MIME_TYPES.join(",")}
+        helperText="JPEG, PNG, WebP, AVIF — maks. 8MB"
+        className="sm:w-72"
+      />
+      <div className="flex flex-1 flex-col gap-3 sm:pt-0">
+        <FormField label="Alt Metni">
+          {(props) => <Input {...props} value={alt} onChange={(e) => setAlt(e.target.value)} placeholder="Ürünü tanımlayan kısa metin" />}
+        </FormField>
+        <Button type="submit" disabled={isPending} className="min-h-11 w-fit">
+          {isPending ? "Yükleniyor…" : "Görsel Yükle"}
+        </Button>
+        {error && <p className="text-sm text-destructive">{error}</p>}
+      </div>
     </form>
   )
 }

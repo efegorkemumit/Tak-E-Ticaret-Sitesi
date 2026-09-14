@@ -17,7 +17,7 @@ function FeaturedCollectionSection({
 }) {
   return (
     <section className="flex flex-col gap-6">
-      <h2 className="font-display text-2xl text-foreground">{collection.name}</h2>
+      <h2 className="font-display text-section-title text-foreground lg:text-section-title-lg">{collection.name}</h2>
       <div className="grid grid-cols-2 gap-x-4 gap-y-10 sm:grid-cols-4">
         {products.slice(0, 4).map((product) => (
           <ProductCard key={product.id} product={product} />

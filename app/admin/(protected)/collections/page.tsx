@@ -7,10 +7,11 @@ import {
   DataTable,
   DataTableHead,
   DataTableBody,
-  DataTableRow,
+  DataTableClickableRow,
   DataTableHeadCell,
   DataTableCell,
 } from "@/components/admin/data-table"
+import { AdminMobileRecordCard } from "@/components/admin/mobile-record-card"
 import { EmptyState } from "@/components/ui/empty-state"
 import { buttonVariants } from "@/components/ui/button"
 
@@ -32,19 +33,11 @@ export default async function AdminCollectionsPage() {
         }
       />
 
-      <DataTable>
-        <DataTableHead>
-          <DataTableRow>
-            <DataTableHeadCell>Ad</DataTableHeadCell>
-            <DataTableHeadCell>Slug</DataTableHeadCell>
-            <DataTableHeadCell>Ürün Sayısı</DataTableHeadCell>
-            <DataTableHeadCell />
-          </DataTableRow>
-        </DataTableHead>
-        <DataTableBody>
-          {collections.length === 0 ? (
+      {collections.length === 0 ? (
+        <DataTable>
+          <DataTableBody>
             <tr>
-              <td colSpan={4}>
+              <td>
                 <EmptyState
                   icon={<Layers className="size-8" />}
                   title="Henüz koleksiyon yok"
@@ -53,25 +46,43 @@ export default async function AdminCollectionsPage() {
                 />
               </td>
             </tr>
-          ) : (
-            collections.map((collection) => (
-              <DataTableRow key={collection.id}>
-                <DataTableCell>{collection.name}</DataTableCell>
-                <DataTableCell className="text-muted-foreground">{collection.slug}</DataTableCell>
-                <DataTableCell>{collection.productCount}</DataTableCell>
-                <DataTableCell className="text-right">
-                  <Link
-                    href={`/admin/collections/${collection.id}`}
-                    className="text-sm underline-offset-4 hover:underline"
-                  >
-                    Düzenle
-                  </Link>
-                </DataTableCell>
-              </DataTableRow>
-            ))
-          )}
-        </DataTableBody>
-      </DataTable>
+          </DataTableBody>
+        </DataTable>
+      ) : (
+        <>
+          <DataTable className="hidden lg:block">
+            <DataTableHead>
+              <tr>
+                <DataTableHeadCell>Ad</DataTableHeadCell>
+                <DataTableHeadCell className="w-px whitespace-nowrap">Slug</DataTableHeadCell>
+                <DataTableHeadCell className="w-px whitespace-nowrap text-right">Ürün Sayısı</DataTableHeadCell>
+                <DataTableHeadCell />
+              </tr>
+            </DataTableHead>
+            <DataTableBody>
+              {collections.map((collection) => (
+                <DataTableClickableRow key={collection.id} href={`/admin/collections/${collection.id}`}>
+                  <DataTableCell className="font-medium">{collection.name}</DataTableCell>
+                  <DataTableCell className="whitespace-nowrap text-muted-foreground">{collection.slug}</DataTableCell>
+                  <DataTableCell className="text-right tabular-nums">{collection.productCount}</DataTableCell>
+                </DataTableClickableRow>
+              ))}
+            </DataTableBody>
+          </DataTable>
+
+          <div className="flex flex-col gap-2 lg:hidden">
+            {collections.map((collection) => (
+              <AdminMobileRecordCard
+                key={collection.id}
+                href={`/admin/collections/${collection.id}`}
+                title={collection.name}
+                meta={collection.slug}
+                value={`${collection.productCount} ürün`}
+              />
+            ))}
+          </div>
+        </>
+      )}
     </div>
   )
 }

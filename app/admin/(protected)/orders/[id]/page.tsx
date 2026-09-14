@@ -2,6 +2,7 @@ import { notFound } from "next/navigation"
 import { getOrderDetailById } from "@/lib/admin"
 import { formatPriceTRY } from "@/lib/format"
 import { AdminPageHeader } from "@/components/admin/page-header"
+import { AdminFormSection } from "@/components/admin/form-section"
 import {
   DataTable,
   DataTableHead,
@@ -11,16 +12,19 @@ import {
   DataTableCell,
 } from "@/components/admin/data-table"
 import { OrderStatusTransitionForm } from "@/components/admin/order-status-transition-form"
-import { getOrderStatusLabel, getPaymentMethodLabel, getPaymentStatusLabel } from "@/components/admin/status-labels"
+import { OrderStatusBadge, PaymentStatusBadge } from "@/components/admin/status-badge"
+import { getPaymentMethodLabel } from "@/components/admin/status-labels"
 import { formatAdminDateTime } from "@/components/admin/format"
 import { updateOrderStatusAction } from "../actions"
 
 export const dynamic = "force-dynamic"
 
 /**
- * D026 sert kuralı: `paymentStatus` burada YALNIZCA GÖRÜNTÜLENİR (bkz.
- * aşağıdaki salt-okunur `<dl>` satırı) — hiçbir düzenleme kontrolü yok.
- * Sipariş durumu geçişi ayrı bir bölümde, `OrderStatusTransitionForm` ile.
+ * D026 sert kuralı: `paymentStatus` burada YALNIZCA GÖRÜNTÜLENİR (`Ödeme`
+ * bölümü) — hiçbir düzenleme kontrolü yok.
+ *
+ * VIDEO 08 STEP 3 (part 2) — spec'in istediği gruplama BİREBİR: Sipariş /
+ * Müşteri / Teslimat / Ürünler / Ödeme / Kargo, her biri kendi kartı.
  */
 export default async function AdminOrderDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -28,12 +32,19 @@ export default async function AdminOrderDetailPage({ params }: { params: Promise
   if (!order) notFound()
 
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex flex-col gap-6">
       <AdminPageHeader title={order.orderNumber} description={formatAdminDateTime(order.createdAt)} />
 
+      <AdminFormSection title="Sipariş">
+        <div className="flex flex-wrap items-center gap-3">
+          <span className="text-sm text-muted-foreground">Şu anki durum:</span>
+          <OrderStatusBadge status={order.orderStatus} />
+        </div>
+        <OrderStatusTransitionForm orderId={order.id} currentStatus={order.orderStatus} action={updateOrderStatusAction} />
+      </AdminFormSection>
+
       <div className="grid gap-6 lg:grid-cols-2">
-        <section className="rounded-md border border-border p-4">
-          <h3 className="mb-3 text-sm font-medium text-foreground">Müşteri</h3>
+        <AdminFormSection title="Müşteri">
           <dl className="flex flex-col gap-1.5 text-sm">
             <div className="flex justify-between gap-4">
               <dt className="text-muted-foreground">Ad Soyad</dt>
@@ -48,10 +59,9 @@ export default async function AdminOrderDetailPage({ params }: { params: Promise
               <dd className="text-foreground">{order.contact.email}</dd>
             </div>
           </dl>
-        </section>
+        </AdminFormSection>
 
-        <section className="rounded-md border border-border p-4">
-          <h3 className="mb-3 text-sm font-medium text-foreground">Teslimat Adresi</h3>
+        <AdminFormSection title="Teslimat">
           <p className="text-sm text-foreground">
             {order.deliveryAddress.addressLine}
             <br />
@@ -59,19 +69,18 @@ export default async function AdminOrderDetailPage({ params }: { params: Promise
             <br />
             {order.deliveryAddress.country}
           </p>
-        </section>
+        </AdminFormSection>
       </div>
 
-      <section>
-        <h3 className="mb-3 text-sm font-medium text-foreground">Kalemler</h3>
+      <AdminFormSection title="Ürünler">
         <DataTable>
           <DataTableHead>
             <DataTableRow>
               <DataTableHeadCell>Ürün</DataTableHeadCell>
-              <DataTableHeadCell>SKU</DataTableHeadCell>
-              <DataTableHeadCell>Adet</DataTableHeadCell>
-              <DataTableHeadCell>Birim Fiyat</DataTableHeadCell>
-              <DataTableHeadCell>Toplam</DataTableHeadCell>
+              <DataTableHeadCell className="w-px whitespace-nowrap">SKU</DataTableHeadCell>
+              <DataTableHeadCell className="w-px whitespace-nowrap text-right">Adet</DataTableHeadCell>
+              <DataTableHeadCell className="w-px whitespace-nowrap text-right">Birim Fiyat</DataTableHeadCell>
+              <DataTableHeadCell className="w-px whitespace-nowrap text-right">Toplam</DataTableHeadCell>
             </DataTableRow>
           </DataTableHead>
           <DataTableBody>
@@ -81,10 +90,10 @@ export default async function AdminOrderDetailPage({ params }: { params: Promise
                   {item.productNameSnapshot}
                   <span className="block text-xs text-muted-foreground">{item.variantDescriptionSnapshot}</span>
                 </DataTableCell>
-                <DataTableCell className="text-muted-foreground">{item.skuSnapshot}</DataTableCell>
-                <DataTableCell>{item.quantity}</DataTableCell>
-                <DataTableCell>{formatPriceTRY(Number(item.unitPriceSnapshot))}</DataTableCell>
-                <DataTableCell>{formatPriceTRY(Number(item.lineTotal))}</DataTableCell>
+                <DataTableCell className="whitespace-nowrap text-muted-foreground">{item.skuSnapshot}</DataTableCell>
+                <DataTableCell className="text-right tabular-nums">{item.quantity}</DataTableCell>
+                <DataTableCell className="text-right tabular-nums">{formatPriceTRY(Number(item.unitPriceSnapshot))}</DataTableCell>
+                <DataTableCell className="text-right tabular-nums">{formatPriceTRY(Number(item.lineTotal))}</DataTableCell>
               </DataTableRow>
             ))}
           </DataTableBody>
@@ -93,44 +102,57 @@ export default async function AdminOrderDetailPage({ params }: { params: Promise
         <dl className="mt-3 flex max-w-xs flex-col gap-1.5 text-sm">
           <div className="flex justify-between">
             <dt className="text-muted-foreground">Ara Toplam</dt>
-            <dd className="text-foreground">{formatPriceTRY(Number(order.subtotal))}</dd>
+            <dd className="text-foreground tabular-nums">{formatPriceTRY(Number(order.subtotal))}</dd>
           </div>
           <div className="flex justify-between font-medium">
             <dt className="text-foreground">Toplam</dt>
-            <dd className="text-foreground">{formatPriceTRY(Number(order.total))}</dd>
+            <dd className="text-foreground tabular-nums">{formatPriceTRY(Number(order.total))}</dd>
           </div>
           {order.giftPackagingSelected && <p className="text-xs text-muted-foreground">Hediye paketleme seçildi.</p>}
         </dl>
-      </section>
+      </AdminFormSection>
 
-      <section className="rounded-md border border-border p-4">
-        <h3 className="mb-3 text-sm font-medium text-foreground">Ödeme (salt okunur)</h3>
-        <dl className="flex flex-col gap-1.5 text-sm">
-          <div className="flex justify-between gap-4">
-            <dt className="text-muted-foreground">Yöntem</dt>
-            <dd className="text-foreground">{getPaymentMethodLabel(order.paymentMethod)}</dd>
-          </div>
-          <div className="flex justify-between gap-4">
-            <dt className="text-muted-foreground">Durum</dt>
-            <dd className="text-foreground">{getPaymentStatusLabel(order.paymentStatus)}</dd>
-          </div>
-        </dl>
-        <p className="mt-2 text-xs text-muted-foreground">
-          Ödeme durumu bu panelden değiştirilemez (D026) — yalnızca payments modülü günceller.
-        </p>
-      </section>
+      <div className="grid gap-6 lg:grid-cols-2">
+        <AdminFormSection title="Ödeme" description="Salt okunur — bu panelden değiştirilemez (D026), yalnızca payments modülü günceller.">
+          <dl className="flex flex-col gap-1.5 text-sm">
+            <div className="flex justify-between gap-4">
+              <dt className="text-muted-foreground">Yöntem</dt>
+              <dd className="text-foreground">{getPaymentMethodLabel(order.paymentMethod)}</dd>
+            </div>
+            <div className="flex justify-between gap-4">
+              <dt className="text-muted-foreground">Durum</dt>
+              <dd>
+                <PaymentStatusBadge status={order.paymentStatus} />
+              </dd>
+            </div>
+          </dl>
+        </AdminFormSection>
 
-      <section className="rounded-md border border-border p-4">
-        <h3 className="mb-3 text-sm font-medium text-foreground">Sipariş Durumu</h3>
-        <p className="mb-4 text-sm text-foreground">Şu anki durum: {getOrderStatusLabel(order.orderStatus)}</p>
-        {order.shippingCarrier && (
-          <p className="mb-2 text-sm text-muted-foreground">
-            Kargo: {order.shippingCarrier}
-            {order.trackingNumber && ` — Takip No: ${order.trackingNumber}`}
-          </p>
-        )}
-        <OrderStatusTransitionForm orderId={order.id} currentStatus={order.orderStatus} action={updateOrderStatusAction} />
-      </section>
+        <AdminFormSection title="Kargo">
+          {order.shippingCarrier ? (
+            <dl className="flex flex-col gap-1.5 text-sm">
+              <div className="flex justify-between gap-4">
+                <dt className="text-muted-foreground">Kargo Firması</dt>
+                <dd className="text-foreground">{order.shippingCarrier}</dd>
+              </div>
+              {order.trackingNumber && (
+                <div className="flex justify-between gap-4">
+                  <dt className="text-muted-foreground">Takip No</dt>
+                  <dd className="text-foreground">{order.trackingNumber}</dd>
+                </div>
+              )}
+              {order.shippedAt && (
+                <div className="flex justify-between gap-4">
+                  <dt className="text-muted-foreground">Kargoya Veriliş</dt>
+                  <dd className="text-foreground">{formatAdminDateTime(order.shippedAt)}</dd>
+                </div>
+              )}
+            </dl>
+          ) : (
+            <p className="text-sm text-muted-foreground">Henüz kargo bilgisi girilmedi — sipariş &ldquo;Kargoya Verildi&rdquo; durumuna geçtiğinde girilebilir.</p>
+          )}
+        </AdminFormSection>
+      </div>
     </div>
   )
 }

@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input"
 import { FormField } from "@/components/ui/form-field"
 import { Button } from "@/components/ui/button"
 import { AdminTextarea } from "@/components/admin/textarea"
+import { AdminFormSection } from "@/components/admin/form-section"
 import type { CollectionActionFailure } from "@/app/admin/(protected)/collections/actions"
 
 /** `CategoryForm`'la aynı desen — koleksiyon ↔ ürün ilişkisi burada değil, `ProductForm`'daki çoklu seçimde yönetilir (D023). */
@@ -51,29 +52,31 @@ function CollectionForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} noValidate className="flex max-w-lg flex-col gap-4">
-      <FormField label="Koleksiyon Adı" error={fieldErrors.name}>
-        {(props) => <Input {...props} value={name} onChange={(e) => setName(e.target.value)} autoFocus />}
-      </FormField>
-      <FormField label="Slug" error={fieldErrors.slug}>
-        {(props) => (
-          <Input
-            {...props}
-            value={slug}
-            onChange={(e) => setSlug(e.target.value)}
-            placeholder={mode === "create" ? "Boş bırakılırsa isimden otomatik oluşturulur" : undefined}
-          />
-        )}
-      </FormField>
-      <FormField label="Açıklama (opsiyonel)" error={fieldErrors.description}>
-        {(props) => <AdminTextarea {...props} value={description} onChange={(e) => setDescription(e.target.value)} />}
-      </FormField>
+    <form onSubmit={handleSubmit} noValidate className="max-w-lg">
+      <AdminFormSection title="Koleksiyon Bilgileri">
+        <FormField label="Koleksiyon Adı" error={fieldErrors.name}>
+          {(props) => <Input {...props} value={name} onChange={(e) => setName(e.target.value)} autoFocus />}
+        </FormField>
+        <FormField label="Slug" error={fieldErrors.slug}>
+          {(props) => (
+            <Input
+              {...props}
+              value={slug}
+              onChange={(e) => setSlug(e.target.value)}
+              placeholder={mode === "create" ? "Boş bırakılırsa isimden otomatik oluşturulur" : undefined}
+            />
+          )}
+        </FormField>
+        <FormField label="Açıklama (opsiyonel)" error={fieldErrors.description}>
+          {(props) => <AdminTextarea {...props} value={description} onChange={(e) => setDescription(e.target.value)} />}
+        </FormField>
 
-      {formError && <p className="text-sm text-destructive">{formError}</p>}
+        {formError && <p className="text-sm text-destructive">{formError}</p>}
 
-      <Button type="submit" disabled={isPending} className="min-h-11 w-fit">
-        {isPending ? "Kaydediliyor…" : mode === "create" ? "Koleksiyon Oluştur" : "Değişiklikleri Kaydet"}
-      </Button>
+        <Button type="submit" disabled={isPending} className="min-h-11 w-fit">
+          {isPending ? "Kaydediliyor…" : mode === "create" ? "Koleksiyon Oluştur" : "Değişiklikleri Kaydet"}
+        </Button>
+      </AdminFormSection>
     </form>
   )
 }

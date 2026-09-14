@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react"
 import { createVariantSchema, updateVariantSchema, updateVariantStockSchema } from "@/lib/admin/schemas"
+import { formatPriceTRY } from "@/lib/format"
 import { Input } from "@/components/ui/input"
 import { FormField } from "@/components/ui/form-field"
 import { Button } from "@/components/ui/button"
@@ -72,10 +73,13 @@ function ProductVariantsSection({
         <DataTable>
           <DataTableHead>
             <DataTableRow>
-              <DataTableHeadCell>SKU</DataTableHeadCell>
+              <DataTableHeadCell className="w-px whitespace-nowrap">SKU</DataTableHeadCell>
               <DataTableHeadCell>Öznitelikler</DataTableHeadCell>
-              <DataTableHeadCell>Fiyat</DataTableHeadCell>
-              <DataTableHeadCell>Fiziksel / Rezerve / Kullanılabilir Stok</DataTableHeadCell>
+              <DataTableHeadCell className="w-px whitespace-nowrap text-right">Fiyat</DataTableHeadCell>
+              <DataTableHeadCell className="w-px whitespace-nowrap">Fiziksel Stok</DataTableHeadCell>
+              <DataTableHeadCell className="w-px whitespace-nowrap text-right">Rezerve</DataTableHeadCell>
+              <DataTableHeadCell className="w-px whitespace-nowrap text-right">Kullanılabilir</DataTableHeadCell>
+              <DataTableHeadCell className="w-px whitespace-nowrap">İşlem</DataTableHeadCell>
             </DataTableRow>
           </DataTableHead>
           <DataTableBody>
@@ -162,7 +166,10 @@ function VariantRow({
 
   return (
     <DataTableRow>
-      <DataTableCell>
+      {/* DÜZELTME (final inceleme) — `whitespace-nowrap` eksikti, gerçekçi
+          uzunlukta bir SKU (`DEMO-ARCHIVED-001`) üç satıra bölünüyor, boş
+          "Öznitelikler" sütunu da bu yüzden gereksiz geniş kalıyordu. */}
+      <DataTableCell className="whitespace-nowrap font-medium">
         {isEditingBasics ? (
           <div className="flex flex-col gap-1">
             <Input value={sku} onChange={(e) => setSku(e.target.value)} aria-label="SKU" className="h-9 w-40" />
@@ -176,68 +183,64 @@ function VariantRow({
           ? "—"
           : variant.attributes.map((a) => `${a.label}: ${a.value}`).join(", ")}
       </DataTableCell>
-      <DataTableCell>
+      <DataTableCell className="text-right">
         {isEditingBasics ? (
           <Input value={price} onChange={(e) => setPrice(e.target.value)} aria-label="Fiyat" className="h-9 w-28" />
         ) : (
-          `${variant.price} TRY`
+          <span className="font-medium tabular-nums">{formatPriceTRY(Number(variant.price))}</span>
         )}
       </DataTableCell>
       <DataTableCell>
-        <div className="flex flex-wrap items-center gap-3">
-          <span className="text-muted-foreground">
-            {variant.stockQuantity} / {variant.reservedQuantity} / {variant.availableQuantity}
-          </span>
-          <form
-            onSubmit={(e) => {
-              e.preventDefault()
-              handleSaveStock()
-            }}
-            className="flex items-center gap-1.5"
-          >
-            <Input
-              type="number"
-              min={0}
-              value={stockQuantity}
-              onChange={(e) => setStockQuantity(e.target.value)}
-              aria-label={`${variant.sku} fiziksel stok`}
-              className="h-9 w-20"
-            />
-            <Button type="submit" variant="outline" size="sm" disabled={isStockPending} className="h-9">
-              Güncelle
-            </Button>
-          </form>
-        </div>
+        <form
+          onSubmit={(e) => {
+            e.preventDefault()
+            handleSaveStock()
+          }}
+          className="flex items-center gap-1.5"
+        >
+          <Input
+            type="number"
+            min={0}
+            value={stockQuantity}
+            onChange={(e) => setStockQuantity(e.target.value)}
+            aria-label={`${variant.sku} fiziksel stok`}
+            className="h-9 w-20"
+          />
+          <Button type="submit" variant="outline" size="sm" disabled={isStockPending} className="h-9">
+            Güncelle
+          </Button>
+        </form>
         {stockError && <p className="mt-1 text-xs text-destructive">{stockError}</p>}
-
-        <div className="mt-2">
-          {isEditingBasics ? (
-            <div className="flex items-center gap-2">
-              <Button type="button" size="sm" disabled={isBasicsPending} onClick={handleSaveBasics} className="h-9">
-                Kaydet
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="h-9"
-                onClick={() => {
-                  setIsEditingBasics(false)
-                  setSku(variant.sku)
-                  setPrice(variant.price)
-                  setBasicsError(null)
-                }}
-              >
-                Vazgeç
-              </Button>
-            </div>
-          ) : (
-            <Button type="button" variant="ghost" size="sm" className="h-9" onClick={() => setIsEditingBasics(true)}>
-              SKU/fiyat düzenle
+      </DataTableCell>
+      <DataTableCell className="text-right tabular-nums text-muted-foreground">{variant.reservedQuantity}</DataTableCell>
+      <DataTableCell className="text-right font-medium tabular-nums">{variant.availableQuantity}</DataTableCell>
+      <DataTableCell>
+        {isEditingBasics ? (
+          <div className="flex items-center gap-2">
+            <Button type="button" size="sm" disabled={isBasicsPending} onClick={handleSaveBasics} className="h-9">
+              Kaydet
             </Button>
-          )}
-          {basicsError && <p className="mt-1 text-xs text-destructive">{basicsError}</p>}
-        </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-9"
+              onClick={() => {
+                setIsEditingBasics(false)
+                setSku(variant.sku)
+                setPrice(variant.price)
+                setBasicsError(null)
+              }}
+            >
+              Vazgeç
+            </Button>
+          </div>
+        ) : (
+          <Button type="button" variant="ghost" size="sm" className="h-9 whitespace-nowrap" onClick={() => setIsEditingBasics(true)}>
+            SKU/fiyat düzenle
+          </Button>
+        )}
+        {basicsError && <p className="mt-1 text-xs text-destructive">{basicsError}</p>}
       </DataTableCell>
     </DataTableRow>
   )

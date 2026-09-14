@@ -7,6 +7,7 @@ import { CartLineItem } from "@/components/cart/cart-line-item"
 import { CartSummary } from "@/components/cart/cart-summary"
 import { EmptyState } from "@/components/ui/empty-state"
 import { buttonVariants } from "@/components/ui/button"
+import { Container } from "@/components/container"
 import { cn } from "cn"
 
 /**
@@ -19,8 +20,8 @@ export default function CartPage() {
   const { lines, itemCount, subtotal, isHydrated } = useCart()
 
   return (
-    <div className="mx-auto w-full max-w-3xl px-4 py-10 sm:px-6">
-      <h1 className="mb-8 font-display text-3xl text-foreground">Sepetim</h1>
+    <Container size="narrow" className="py-10 lg:py-16">
+      <h1 className="mb-8 font-display text-page-title text-foreground lg:text-page-title-lg">Sepetim</h1>
 
       {!isHydrated ? null : lines.length === 0 ? (
         <EmptyState
@@ -28,7 +29,7 @@ export default function CartPage() {
           title="Sepetiniz boş"
           description="Beğendiğiniz ürünleri sepete ekleyerek alışverişe başlayabilirsiniz."
           action={
-            <Link href="/urunler" className={buttonVariants({})}>
+            <Link href="/urunler" className={cn(buttonVariants({}), "min-h-11")}>
               Ürünlere göz at
             </Link>
           }
@@ -43,11 +44,11 @@ export default function CartPage() {
 
           <CartSummary subtotal={subtotal} itemCount={itemCount} />
 
-          <Link href="/checkout" className={cn(buttonVariants({ size: "lg" }), "w-full")}>
+          <Link href="/checkout" className={cn(buttonVariants({ size: "lg" }), "min-h-11 w-full")}>
             Ödemeye Geç
           </Link>
         </div>
       )}
-    </div>
+    </Container>
   )
 }

@@ -70,12 +70,18 @@ function OrderFilterForm({
           />
         )}
       </FormField>
-      <Button type="submit" className="min-h-11">
-        Filtrele
-      </Button>
-      <Button type="button" variant="outline" className="min-h-11" onClick={clearFilters}>
-        Temizle
-      </Button>
+      {/* DÜZELTME (final inceleme) — `flex-wrap` altında butonlar tek tek
+          sarılırsa "Temizle" tek başına öksüz bir satıra düşüyordu
+          (`orders-1024`/`orders-768`). İki buton artık `shrink-0` bir grup
+          olarak BİRLİKTE sarılıyor, ayrı ayrı değil. */}
+      <div className="flex shrink-0 gap-3">
+        <Button type="submit" className="min-h-11">
+          Filtrele
+        </Button>
+        <Button type="button" variant="outline" className="min-h-11" onClick={clearFilters}>
+          Temizle
+        </Button>
+      </div>
     </form>
   )
 }

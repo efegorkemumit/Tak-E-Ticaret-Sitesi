@@ -35,6 +35,17 @@ const GENERIC_SILVER_CARE_INFO =
 // D012).
 const PLACEHOLDER_IMAGE_URL = "/fixtures/placeholder-jewelry.svg"
 
+// Telifsiz (royalty-free) stok fotoğraflar — `public/images/` altına
+// kopyalandı, brand-ui tarafından incelendi. GERÇEK ÜRÜN FOTOĞRAFI
+// DEĞİLDİR (D011/D012/D013) — bu yüzden aşağıdaki satırlarda `isPlaceholder`
+// yine `true` KALIR ve `storageKey` yine `null` kalır (bunlar object
+// storage'dan değil, repodaki statik dosyalardan geliyor). Tek fark, soyut
+// SVG yerine ürünle GÖRSEL OLARAK tutarlı bir stok fotoğraf kullanılması —
+// bu, `isPlaceholder`/storefront'un "Örnek görsel" rozetinin anlamını
+// DEĞİŞTİRMEZ.
+const STOCK_RING_IMAGE_URL = "/images/yuzuk_gercek_12.webp"
+const STOCK_EARRING_IMAGE_URL = "/images/kupe_gercek_08.webp"
+
 async function main() {
   // --- Category (D023 — Product tekil FK) -----------------------------------
   const ringCategory = await prisma.category.upsert({
@@ -157,11 +168,13 @@ async function main() {
   })
   await prisma.productImage.upsert({
     where: { productId_sortOrder: { productId: ring.id, sortOrder: 0 } },
-    update: {},
+    update: { url: STOCK_RING_IMAGE_URL, alt: "Sade, taşlı tek bir gümüş yüzüğün stüdyo çekimi" },
     create: {
       productId: ring.id,
-      url: PLACEHOLDER_IMAGE_URL,
-      alt: "Örnek Gümüş Yüzük — örnek/placeholder görsel",
+      url: STOCK_RING_IMAGE_URL,
+      alt: "Sade, taşlı tek bir gümüş yüzüğün stüdyo çekimi",
+      // Telifsiz stok fotoğraf — satılan gerçek ürünün fotoğrafı DEĞİLDİR,
+      // bu yüzden `isPlaceholder` bilinçli olarak `true` (D012/D013).
       isPlaceholder: true,
       sortOrder: 0,
     },
@@ -223,6 +236,11 @@ async function main() {
       },
     },
   })
+  // BİLİNÇLİ OLARAK STOK FOTOĞRAFA GEÇİRİLMEDİ: elimizdeki "zirkon+inci"
+  // temalı telifsiz kareler SET fotoğrafı (kadrajda bilezik+küpe+yüzük de
+  // var, yalnızca bu kolye değil) — tekil ürün galerisine konulursa
+  // müşteriyi yanıltır (D012'nin tam olarak önlemeye çalıştığı şey). Soyut
+  // placeholder SVG'de kalıyor.
   await prisma.productImage.upsert({
     where: { productId_sortOrder: { productId: necklace.id, sortOrder: 0 } },
     update: {},
@@ -275,11 +293,13 @@ async function main() {
   })
   await prisma.productImage.upsert({
     where: { productId_sortOrder: { productId: earring.id, sortOrder: 0 } },
-    update: {},
+    update: { url: STOCK_EARRING_IMAGE_URL, alt: "Dal üzerinde asılı, gümüş telli bir çift kristal küpe" },
     create: {
       productId: earring.id,
-      url: PLACEHOLDER_IMAGE_URL,
-      alt: "Örnek Gümüş Akik Küpe — örnek/placeholder görsel",
+      url: STOCK_EARRING_IMAGE_URL,
+      alt: "Dal üzerinde asılı, gümüş telli bir çift kristal küpe",
+      // Telifsiz stok fotoğraf — satılan gerçek ürünün fotoğrafı DEĞİLDİR,
+      // bu yüzden `isPlaceholder` bilinçli olarak `true` (D012/D013).
       isPlaceholder: true,
       sortOrder: 0,
     },

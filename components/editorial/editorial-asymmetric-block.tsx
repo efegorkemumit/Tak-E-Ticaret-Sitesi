@@ -1,6 +1,7 @@
 import Image from "next/image"
 import Link from "next/link"
 import { cn } from "cn"
+import { ImageBadge } from "@/components/image-badge"
 
 /**
  * `docs/COMPONENT_INVENTORY.md` #17 — YALNIZCA ana sayfa editorial/koleksiyon
@@ -38,12 +39,10 @@ function EditorialAsymmetricBlock({
           className="object-cover"
           unoptimized={image.url.endsWith(".svg")}
         />
-        <span className="absolute left-3 top-3 rounded-full bg-background/90 px-2 py-0.5 text-[0.7rem] text-muted-foreground">
-          Editorial görsel
-        </span>
+        <ImageBadge>Editorial görsel</ImageBadge>
       </div>
       <div className="flex flex-col gap-2">
-        <h3 className="font-display text-2xl text-foreground">{heading}</h3>
+        <h3 className="font-display text-section-title text-foreground lg:text-section-title-lg">{heading}</h3>
         <p className="text-sm text-muted-foreground">{body}</p>
         {cta && (
           <Link

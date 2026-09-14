@@ -4,6 +4,8 @@ import { useEffect, useRef, useState } from "react"
 import Image from "next/image"
 import { cn } from "cn"
 import type { DisplayImage } from "@/lib/placeholder-image"
+import { ImageBadge } from "@/components/image-badge"
+import { getImageDimensions } from "@/components/product/image-dimensions"
 
 /**
  * `docs/COMPONENT_INVENTORY.md` #3 — tek sütun, büyük görsel, sıralı akış.
@@ -44,32 +46,60 @@ function ProductGallery({ images, productName }: { images: DisplayImage[]; produ
     <div className="flex flex-col gap-3">
       <div
         ref={containerRef}
-        className="flex snap-x snap-mandatory overflow-x-auto scroll-smooth [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+        className="no-scrollbar flex snap-x snap-mandatory overflow-x-auto scroll-smooth"
       >
-        {images.map((image, index) => (
-          <div
-            key={image.url + index}
-            ref={(el) => {
-              slideRefs.current[index] = el
-            }}
-            className="relative aspect-square w-full flex-shrink-0 snap-center bg-surface-muted"
-          >
-            <Image
-              src={image.url}
-              alt={image.alt || productName}
-              fill
-              sizes="(min-width: 1024px) 50vw, 100vw"
-              className="object-cover"
-              priority={index === 0}
-              unoptimized={image.url.endsWith(".svg")}
-            />
-            {image.isPlaceholder && (
-              <span className="absolute left-3 top-3 rounded-full bg-background/90 px-2 py-0.5 text-[0.7rem] text-muted-foreground">
-                Örnek görsel
-              </span>
-            )}
-          </div>
-        ))}
+        {images.map((image, index) => {
+          const dims = getImageDimensions(image.url)
+          return (
+            <div
+              key={image.url + index}
+              ref={(el) => {
+                slideRefs.current[index] = el
+              }}
+              // VIDEO 08 STEP 2 düzeltmesi (brand-ui kararı, team lead'in final
+              // review bulgusu üzerine): SABİT bir `aspect-*` çerçeve YOK
+              // (önceki `aspect-square`/`aspect-[4/3]` denemeleri letterbox
+              // üretiyordu — kırpma yerine boşluk, ama yine de "render hatası"
+              // gibi okunuyordu). Boyutu BİLİNEN görsellerde (`dims`) kutu
+              // görselin kendi oranına göre auto-yükseklik alır (aşağıdaki
+              // `<Image>`), yalnızca boyutu bilinmeyen bir fallback'te
+              // (`!dims`) `fill`'in gerektirdiği `aspect-square`'e düşülür.
+              className={cn("relative w-full flex-shrink-0 snap-center bg-surface-muted", !dims && "aspect-square")}
+            >
+              {dims ? (
+                <Image
+                  src={image.url}
+                  alt={image.alt || productName}
+                  width={dims.width}
+                  height={dims.height}
+                  sizes="(min-width: 1024px) 50vw, 100vw"
+                  // `w-full h-auto` + gerçek `width`/`height` (`fill` DEĞİL):
+                  // tarayıcı, görsel yüklenmeden ÖNCE bu HTML width/height
+                  // özniteliklerinden örtük bir `aspect-ratio` çıkarır — CLS
+                  // üretmez. `max-h-[85vh]` YALNIZCA emniyet sübabı: çok dikey
+                  // bir kaynak (ör. ~0.67 oranlı) sayfayı aşırı uzatmasın diye;
+                  // normal oranlı görsellerde hiç devreye girmez. Kırpma YOK
+                  // (`object-contain`) — PDP'de D012'nin ruhuyla ürünün bir
+                  // kısmının kadraj dışına atılması kabul edilmez.
+                  className="h-auto max-h-[85vh] w-full object-contain"
+                  priority={index === 0}
+                  unoptimized={image.url.endsWith(".svg")}
+                />
+              ) : (
+                <Image
+                  src={image.url}
+                  alt={image.alt || productName}
+                  fill
+                  sizes="(min-width: 1024px) 50vw, 100vw"
+                  className="object-contain"
+                  priority={index === 0}
+                  unoptimized={image.url.endsWith(".svg")}
+                />
+              )}
+              {image.isPlaceholder && <ImageBadge>Örnek görsel</ImageBadge>}
+            </div>
+          )
+        })}
       </div>
       {images.length > 1 && (
         <div className="flex justify-center gap-1.5" role="tablist" aria-label="Ürün görselleri">

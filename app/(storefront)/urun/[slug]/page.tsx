@@ -1,10 +1,13 @@
 import { notFound } from "next/navigation"
 import type { Metadata } from "next"
 import { Breadcrumb } from "@/components/ui/breadcrumb"
+import { Container } from "@/components/container"
 import { ProductGallery } from "@/components/product/product-gallery"
 import { ProductPurchasePanel } from "@/components/product/product-purchase-panel"
 import { ProductInfoAccordion } from "@/components/product/product-info-accordion"
-import { getCategoryBySlug, getProductBySlug } from "@/lib/commerce/catalog"
+import { ProductCard } from "@/components/product/product-card"
+import { Carousel, CarouselItem } from "@/components/ui/carousel"
+import { getCategoryBySlug, getProductBySlug, getProductsByCategorySlug } from "@/lib/commerce/catalog"
 import { getPlaceholderImage } from "@/lib/placeholder-image"
 
 // Gerçek DB'den okunan bir katalog build-time'da bilinemez/statik
@@ -36,8 +39,15 @@ export default async function ProductDetailPage({ params }: PageProps<"/urun/[sl
   // mantığını kullanır.
   const images = product.images.length > 0 ? product.images : [getPlaceholderImage(product.name)]
 
+  // "Benzer Ürünler" — YENİ bir öneri/recommendation mantığı DEĞİL, aynı
+  // kategoriden zaten var olan `getProductsByCategorySlug` sorgusu, mevcut
+  // ürün hariç tutulmuş hâliyle.
+  const relatedProducts = (await getProductsByCategorySlug(product.categorySlug)).filter(
+    (candidate) => candidate.id !== product.id
+  )
+
   return (
-    <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
+    <Container className="py-10 lg:py-16">
       <Breadcrumb
         className="mb-8"
         items={[
@@ -48,12 +58,20 @@ export default async function ProductDetailPage({ params }: PageProps<"/urun/[sl
         ]}
       />
 
-      <div className="grid gap-10 lg:grid-cols-2 lg:gap-16">
-        <ProductGallery images={images} productName={product.name} />
+      {/*
+        VIDEO 08 STEP 2 (part 2) — ~60/40 düzen (`lg:grid-cols-5`, galeri 3/
+        panel 2) + `lg:sticky` satın alma paneli. `items-start` ZORUNLU:
+        aksi halde grid'in varsayılan `stretch` davranışı sticky paneli
+        galerinin tam yüksekliğine gerer, `position: sticky` etkisiz kalır.
+      */}
+      <div className="grid items-start gap-10 lg:grid-cols-5 lg:gap-16">
+        <div className="lg:col-span-3">
+          <ProductGallery images={images} productName={product.name} />
+        </div>
 
-        <div className="flex flex-col gap-8 lg:max-w-sm">
+        <div className="flex flex-col gap-8 lg:sticky lg:top-24 lg:col-span-2">
           <div className="flex flex-col gap-2">
-            <h1 className="font-display text-3xl text-foreground">{product.name}</h1>
+            <h1 className="font-display text-page-title text-foreground lg:text-page-title-lg">{product.name}</h1>
           </div>
 
           <ProductPurchasePanel product={product} />
@@ -65,6 +83,19 @@ export default async function ProductDetailPage({ params }: PageProps<"/urun/[sl
           />
         </div>
       </div>
-    </div>
+
+      {relatedProducts.length > 0 && (
+        <section className="mt-16 flex flex-col gap-6 lg:mt-24">
+          <h2 className="font-display text-section-title text-foreground lg:text-section-title-lg">Benzer Ürünler</h2>
+          <Carousel aria-label="Benzer ürünler">
+            {relatedProducts.map((relatedProduct) => (
+              <CarouselItem key={relatedProduct.id}>
+                <ProductCard product={relatedProduct} />
+              </CarouselItem>
+            ))}
+          </Carousel>
+        </section>
+      )}
+    </Container>
   )
 }

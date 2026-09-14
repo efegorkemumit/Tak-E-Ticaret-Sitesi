@@ -1,26 +1,55 @@
 import Link from "next/link"
-import { Gem } from "lucide-react"
 import { cn } from "cn"
-import { listProductsForAdmin } from "@/lib/admin"
+import { listProductsForAdmin, getProductForAdmin } from "@/lib/admin"
 import { AdminPageHeader } from "@/components/admin/page-header"
-import {
-  DataTable,
-  DataTableHead,
-  DataTableBody,
-  DataTableRow,
-  DataTableHeadCell,
-  DataTableCell,
-} from "@/components/admin/data-table"
-import { EmptyState } from "@/components/ui/empty-state"
+import { ProductListClient, type AdminProductListRow } from "@/components/admin/product-list-client"
 import { buttonVariants } from "@/components/ui/button"
-import { getProductStatusLabel } from "@/components/admin/status-labels"
-import { formatAdminDate } from "@/components/admin/format"
 
 export const dynamic = "force-dynamic"
 
+/**
+ * `AdminProductListItemDto` (`lib/admin/products.ts`) görsel/fiyat/stok
+ * taşımıyor (yalnızca id/slug/ad/durum/kategori/varyant sayısı/tarih) — bu
+ * bir liste-görünümü DTO'su, `lib/**`'e yeni bir alan EKLEMEDİM. Bunun
+ * yerine, katalog küçük olduğu için (dashboard'daki "stokta tükenen"
+ * hesabıyla AYNI desen) her ürün için zaten var olan `getProductForAdmin`'i
+ * çağırıp gerçek ilk görseli/fiyat aralığını/toplam kullanılabilir stoğu
+ * türetiyoruz — uydurulmuş bir değer YOK, hepsi gerçek DB verisi.
+ */
+async function loadEnrichedProductList(): Promise<AdminProductListRow[]> {
+  const products = await listProductsForAdmin()
+  const details = await Promise.all(products.map((product) => getProductForAdmin(product.id)))
+
+  return products.map((product, index) => {
+    const detail = details[index]
+    const thumbnail = detail?.images[0]
+    const prices = detail?.variants.map((variant) => Number(variant.price)) ?? []
+    const totalAvailableStock = detail?.variants.reduce((sum, variant) => sum + variant.availableQuantity, 0) ?? 0
+
+    return {
+      id: product.id,
+      slug: product.slug,
+      name: product.name,
+      status: product.status,
+      categoryName: product.categoryName,
+      variantCount: product.variantCount,
+      createdAt: product.createdAt,
+      thumbnailUrl: thumbnail?.url ?? null,
+      thumbnailAlt: thumbnail?.alt ?? product.name,
+      thumbnailIsPlaceholder: thumbnail?.isPlaceholder ?? true,
+      minPrice: prices.length > 0 ? Math.min(...prices) : null,
+      maxPrice: prices.length > 0 ? Math.max(...prices) : null,
+      totalAvailableStock,
+    }
+  })
+}
+
 /** Admin listesi TÜM durumları (DRAFT/PUBLISHED/ARCHIVED) gösterir — D021'in storefront görünürlük filtresi burada UYGULANMAZ. */
 export default async function AdminProductsPage() {
-  const products = await listProductsForAdmin()
+  const products = await loadEnrichedProductList()
+  const categoryNames = Array.from(new Set(products.map((product) => product.categoryName))).sort((a, b) =>
+    a.localeCompare(b, "tr")
+  )
 
   return (
     <div>
@@ -34,47 +63,7 @@ export default async function AdminProductsPage() {
         }
       />
 
-      <DataTable>
-        <DataTableHead>
-          <DataTableRow>
-            <DataTableHeadCell>Ad</DataTableHeadCell>
-            <DataTableHeadCell>Kategori</DataTableHeadCell>
-            <DataTableHeadCell>Durum</DataTableHeadCell>
-            <DataTableHeadCell>Varyant Sayısı</DataTableHeadCell>
-            <DataTableHeadCell>Oluşturulma</DataTableHeadCell>
-            <DataTableHeadCell />
-          </DataTableRow>
-        </DataTableHead>
-        <DataTableBody>
-          {products.length === 0 ? (
-            <tr>
-              <td colSpan={6}>
-                <EmptyState
-                  icon={<Gem className="size-8" />}
-                  title="Henüz ürün yok"
-                  description="İlk ürününüzü oluşturarak kataloğu başlatabilirsiniz."
-                  className="py-10"
-                />
-              </td>
-            </tr>
-          ) : (
-            products.map((product) => (
-              <DataTableRow key={product.id}>
-                <DataTableCell>{product.name}</DataTableCell>
-                <DataTableCell className="text-muted-foreground">{product.categoryName}</DataTableCell>
-                <DataTableCell>{getProductStatusLabel(product.status)}</DataTableCell>
-                <DataTableCell>{product.variantCount}</DataTableCell>
-                <DataTableCell className="text-muted-foreground">{formatAdminDate(product.createdAt)}</DataTableCell>
-                <DataTableCell className="text-right">
-                  <Link href={`/admin/products/${product.id}`} className="text-sm underline-offset-4 hover:underline">
-                    Düzenle
-                  </Link>
-                </DataTableCell>
-              </DataTableRow>
-            ))
-          )}
-        </DataTableBody>
-      </DataTable>
+      <ProductListClient products={products} categoryNames={categoryNames} />
     </div>
   )
 }

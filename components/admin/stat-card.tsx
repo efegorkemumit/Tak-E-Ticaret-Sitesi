@@ -1,23 +1,45 @@
+import type { LucideIcon } from "lucide-react"
+import { cn } from "cn"
+
 /**
- * Dashboard'daki metrik kartları. `value` kasıtlı olarak `string` (gerçek
- * sayı değil) — Wave A'da hiçbir gerçek sorguya bağlı değiliz, bu yüzden
- * `app/admin/page.tsx` buraya her zaman `"—"` gibi açıkça yer tutucu bir
- * değer geçer, asla uydurulmuş bir rakam DEĞİL (bkz. o dosyadaki not).
+ * Dashboard KPI kartı — `docs/DESIGN_DIRECTION.md`'nin "KPI Kart Anatomisi"
+ * BİREBİR: solda 40px ikon kutusu + sağda dikey stack (değer üstte 30px/600
+ * `tabular-nums`, etiket altta 13px/500). `tone="warning"` yalnızca eylem
+ * gerektiren KPI'lar için (ör. "Stokta Tükenen Varyant") — nötr bir
+ * sayaçla (ör. "Toplam Sipariş") AYNI ağırlıkta gösterilmez (audit bulgusu).
+ *
+ * **Kesin yasak (spec):** sahte trend yüzdesi veya sahte/örnek sparkline
+ * YOK — bu component'te böyle bir prop/slot BİLİNÇLİ OLARAK yok, gerçek
+ * zaman-serisi veri gelmeden eklenmeyecek.
  */
 function StatCard({
   label,
   value,
   caption,
+  icon: Icon,
+  tone = "neutral",
 }: {
   label: string
   value: string
   caption?: string
+  icon: LucideIcon
+  tone?: "neutral" | "warning"
 }) {
   return (
-    <div className="flex flex-col gap-1 rounded-md border border-border p-4">
-      <span className="text-sm text-muted-foreground">{label}</span>
-      <span className="font-display text-3xl text-foreground">{value}</span>
-      {caption && <span className="text-xs text-muted-foreground">{caption}</span>}
+    <div className="flex items-start gap-3 rounded-lg border border-border bg-surface p-5">
+      <span
+        className={cn(
+          "flex size-10 shrink-0 items-center justify-center rounded-md",
+          tone === "warning" ? "bg-warning/10 text-warning" : "bg-surface-muted text-muted-foreground"
+        )}
+      >
+        <Icon className="size-5" aria-hidden="true" />
+      </span>
+      <div className="flex flex-col gap-0.5">
+        <span className="text-admin-kpi-value font-semibold text-foreground tabular-nums">{value}</span>
+        <span className="text-admin-kpi-label text-muted-foreground">{label}</span>
+        {caption && <span className="text-admin-helper text-muted-foreground">{caption}</span>}
+      </div>
     </div>
   )
 }

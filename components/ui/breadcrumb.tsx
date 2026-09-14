@@ -20,7 +20,7 @@ function Breadcrumb({
   className?: string
 }) {
   return (
-    <nav aria-label="Sayfa içi konum" className={cn("text-sm text-muted-foreground", className)}>
+    <nav aria-label="Sayfa içi konum" className={cn("text-metadata text-muted-foreground lg:text-metadata-lg", className)}>
       <ol className="flex flex-wrap items-center gap-1.5">
         {items.map((item, index) => {
           const isLast = index === items.length - 1

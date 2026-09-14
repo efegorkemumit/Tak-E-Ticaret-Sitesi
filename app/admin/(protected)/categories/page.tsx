@@ -6,10 +6,11 @@ import {
   DataTable,
   DataTableHead,
   DataTableBody,
-  DataTableRow,
+  DataTableClickableRow,
   DataTableHeadCell,
   DataTableCell,
 } from "@/components/admin/data-table"
+import { AdminMobileRecordCard } from "@/components/admin/mobile-record-card"
 import { EmptyState } from "@/components/ui/empty-state"
 import { buttonVariants } from "@/components/ui/button"
 import { cn } from "cn"
@@ -32,19 +33,11 @@ export default async function AdminCategoriesPage() {
         }
       />
 
-      <DataTable>
-        <DataTableHead>
-          <DataTableRow>
-            <DataTableHeadCell>Ad</DataTableHeadCell>
-            <DataTableHeadCell>Slug</DataTableHeadCell>
-            <DataTableHeadCell>Ürün Sayısı</DataTableHeadCell>
-            <DataTableHeadCell />
-          </DataTableRow>
-        </DataTableHead>
-        <DataTableBody>
-          {categories.length === 0 ? (
+      {categories.length === 0 ? (
+        <DataTable>
+          <DataTableBody>
             <tr>
-              <td colSpan={4}>
+              <td>
                 <EmptyState
                   icon={<Tag className="size-8" />}
                   title="Henüz kategori yok"
@@ -53,25 +46,43 @@ export default async function AdminCategoriesPage() {
                 />
               </td>
             </tr>
-          ) : (
-            categories.map((category) => (
-              <DataTableRow key={category.id}>
-                <DataTableCell>{category.name}</DataTableCell>
-                <DataTableCell className="text-muted-foreground">{category.slug}</DataTableCell>
-                <DataTableCell>{category.productCount}</DataTableCell>
-                <DataTableCell className="text-right">
-                  <Link
-                    href={`/admin/categories/${category.id}`}
-                    className="text-sm underline-offset-4 hover:underline"
-                  >
-                    Düzenle
-                  </Link>
-                </DataTableCell>
-              </DataTableRow>
-            ))
-          )}
-        </DataTableBody>
-      </DataTable>
+          </DataTableBody>
+        </DataTable>
+      ) : (
+        <>
+          <DataTable className="hidden lg:block">
+            <DataTableHead>
+              <tr>
+                <DataTableHeadCell>Ad</DataTableHeadCell>
+                <DataTableHeadCell className="w-px whitespace-nowrap">Slug</DataTableHeadCell>
+                <DataTableHeadCell className="w-px whitespace-nowrap text-right">Ürün Sayısı</DataTableHeadCell>
+                <DataTableHeadCell />
+              </tr>
+            </DataTableHead>
+            <DataTableBody>
+              {categories.map((category) => (
+                <DataTableClickableRow key={category.id} href={`/admin/categories/${category.id}`}>
+                  <DataTableCell className="font-medium">{category.name}</DataTableCell>
+                  <DataTableCell className="whitespace-nowrap text-muted-foreground">{category.slug}</DataTableCell>
+                  <DataTableCell className="text-right tabular-nums">{category.productCount}</DataTableCell>
+                </DataTableClickableRow>
+              ))}
+            </DataTableBody>
+          </DataTable>
+
+          <div className="flex flex-col gap-2 lg:hidden">
+            {categories.map((category) => (
+              <AdminMobileRecordCard
+                key={category.id}
+                href={`/admin/categories/${category.id}`}
+                title={category.name}
+                meta={category.slug}
+                value={`${category.productCount} ürün`}
+              />
+            ))}
+          </div>
+        </>
+      )}
     </div>
   )
 }

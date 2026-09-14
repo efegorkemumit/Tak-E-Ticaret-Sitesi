@@ -1,4 +1,5 @@
 import Link from "next/link"
+import { Container } from "@/components/container"
 import { getCategories } from "@/lib/commerce/catalog"
 
 /**
@@ -6,9 +7,13 @@ import { getCategories } from "@/lib/commerce/catalog"
  * Teslimat, İade ve Değişim, Gizlilik Politikası, Mesafeli Satış Sözleşmesi
  * sayfaları `docs/PROJECT_BRIEF.md` Bölüm 8'de MVP kapsamındadır ama BU
  * DALGADA henüz oluşturulmadı (kapsam yalnızca ana sayfa/listeleme/detay) —
- * bu yüzden kırık link oluşturmamak için tıklanamaz, "(yakında)" etiketli
- * metin olarak gösterilir; ilgili route'lar eklendiğinde gerçek `Link`'e
- * çevrilmelidir.
+ * bu yüzden kırık link oluşturmamak için tıklanamaz kalır, ilgili route'lar
+ * eklendiğinde gerçek `Link`'e çevrilmelidir.
+ *
+ * VIDEO 08 STEP 2 — audit bulgusu: "gereğinden yüksek ve boş", beş ayrı
+ * satırın hepsi "(yakında)" etiketiyle soluk görünüyordu ("site yayına hazır
+ * değil" hissi). Sayfa/link SAYISI değişmedi (uydurma link yok) — yalnızca
+ * beşi TEK bir kısa, düşük vurgulu cümlede toplandı ve dikey boşluk azaltıldı.
  */
 const LEGAL_PAGES_PENDING = [
   "İletişim",
@@ -32,7 +37,7 @@ async function SiteFooter() {
 
   return (
     <footer className="border-t border-border">
-      <div className="mx-auto grid max-w-6xl gap-10 px-4 py-12 sm:grid-cols-3 sm:px-6">
+      <Container className="grid gap-8 py-10 sm:grid-cols-3 sm:gap-10 sm:py-12">
         <div className="flex flex-col gap-2">
           <p className="text-sm font-medium text-foreground">Keşfet</p>
           <Link href="/" className="text-sm text-muted-foreground hover:text-foreground">
@@ -61,15 +66,13 @@ async function SiteFooter() {
 
         <div className="flex flex-col gap-2">
           <p className="text-sm font-medium text-foreground">Kurumsal</p>
-          {LEGAL_PAGES_PENDING.map((label) => (
-            <span key={label} className="text-sm text-muted-foreground/60">
-              {label} (yakında)
-            </span>
-          ))}
+          <p className="text-metadata text-muted-foreground/70 lg:text-metadata-lg">{LEGAL_PAGES_PENDING.join(", ")} yakında eklenecektir.</p>
         </div>
-      </div>
-      <div className="border-t border-border px-4 py-4 text-center text-xs text-muted-foreground sm:px-6">
-        [Marka Adı] — © {new Date().getFullYear()}. Bu site geliştirme aşamasındadır.
+      </Container>
+      <div className="border-t border-border">
+        <Container className="py-4 text-center text-metadata text-muted-foreground lg:text-metadata-lg">
+          [Marka Adı] — © {new Date().getFullYear()}. Bu site geliştirme aşamasındadır.
+        </Container>
       </div>
     </footer>
   )

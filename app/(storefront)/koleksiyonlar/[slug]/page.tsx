@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation"
 import type { Metadata } from "next"
 import { Breadcrumb } from "@/components/ui/breadcrumb"
+import { Container } from "@/components/container"
 import { ProductGrid } from "@/components/product/product-grid"
 import { getCollectionBySlug, getProductsByCollectionSlug } from "@/lib/commerce/catalog"
 
@@ -25,7 +26,7 @@ export default async function CollectionDetailPage({
   const products = await getProductsByCollectionSlug(collection.slug)
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
+    <Container className="py-10 lg:py-16">
       <Breadcrumb
         className="mb-8"
         items={[
@@ -36,13 +37,13 @@ export default async function CollectionDetailPage({
       />
 
       <div className="mb-10 flex flex-col gap-2">
-        <h1 className="font-display text-3xl text-foreground">{collection.name}</h1>
+        <h1 className="font-display text-page-title text-foreground lg:text-page-title-lg">{collection.name}</h1>
         {collection.description && (
-          <p className="text-sm text-muted-foreground">{collection.description}</p>
+          <p className="text-body text-muted-foreground">{collection.description}</p>
         )}
       </div>
 
       <ProductGrid products={products} />
-    </div>
+    </Container>
   )
 }

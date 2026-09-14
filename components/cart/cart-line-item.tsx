@@ -37,12 +37,12 @@ function CartLineItem({ line }: { line: CartLine }) {
           <div className="flex flex-col gap-0.5">
             <Link
               href={`/urun/${line.productSlug}`}
-              className="text-sm text-foreground outline-none hover:opacity-70 focus-visible:ring-2 focus-visible:ring-ring rounded-sm"
+              className="text-product-title font-medium text-foreground outline-none hover:opacity-70 focus-visible:ring-2 focus-visible:ring-ring rounded-sm lg:text-product-title-lg"
             >
               {line.productName}
             </Link>
             {line.attributeSummary && (
-              <span className="text-xs text-muted-foreground">{line.attributeSummary}</span>
+              <span className="text-metadata text-muted-foreground lg:text-metadata-lg">{line.attributeSummary}</span>
             )}
           </div>
           <button

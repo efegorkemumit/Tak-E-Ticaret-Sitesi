@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation"
 import type { Metadata } from "next"
 import { Breadcrumb } from "@/components/ui/breadcrumb"
+import { Container } from "@/components/container"
 import { ProductGrid } from "@/components/product/product-grid"
 import { getCategoryBySlug, getProductsByCategorySlug } from "@/lib/commerce/catalog"
 
@@ -25,20 +26,20 @@ export default async function CategoryPage({ params }: PageProps<"/kategori/[slu
   const products = await getProductsByCategorySlug(category.slug)
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
+    <Container className="py-10 lg:py-16">
       <Breadcrumb
         className="mb-8"
         items={[{ label: "Ana Sayfa", href: "/" }, { label: "Ürünler", href: "/urunler" }, { label: category.name }]}
       />
 
       <div className="mb-10 flex flex-col gap-2">
-        <h1 className="font-display text-3xl text-foreground">{category.name}</h1>
+        <h1 className="font-display text-page-title text-foreground lg:text-page-title-lg">{category.name}</h1>
         {category.description && (
-          <p className="text-sm text-muted-foreground">{category.description}</p>
+          <p className="text-body text-muted-foreground">{category.description}</p>
         )}
       </div>
 
       <ProductGrid products={products} />
-    </div>
+    </Container>
   )
 }
