@@ -60,3 +60,15 @@ export type {
 // başlık yorumu) — Wave B'de `lib/admin/` (stok ekranı, varyant oluşturma)
 // bunu tüketir, ikinci bir kopyasını YAZMAZ.
 export { getAvailableQuantities } from "./availability"
+
+// VIDEO 09 — public sipariş sorgulama (D031). Şeması (`./order-lookup-schema`)
+// BİLİNÇLİ OLARAK bu barrel'da YOKTUR: client-safe'tir ve sorgulama formu onu
+// doğrudan import etmelidir (dosya başındaki client/server ayrımı notuna bkz.).
+export { lookupOrder } from "./order-lookup"
+export type { PublicOrderDto, OrderLookupResult } from "./order-lookup"
+
+// VIDEO 09 — D018'in otomatik zaman aşımı parçası. Bir HTTP isteği değil,
+// sistem/cron job'ıdır (`requireAdmin` çağırmaz); `scripts/expire-orders.ts`
+// bunu yerel/test ortamında çalıştırır.
+export { expireOverdueBankTransferOrders } from "./expire-orders"
+export type { ExpireOverdueOrdersResult } from "./expire-orders"

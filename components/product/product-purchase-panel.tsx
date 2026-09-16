@@ -1,8 +1,10 @@
 "use client"
 
 import { useMemo, useState } from "react"
-import { Button } from "@/components/ui/button"
+import { ExternalLink } from "lucide-react"
+import { Button, buttonVariants } from "@/components/ui/button"
 import { useToast } from "@/components/ui/toast"
+import { cn } from "cn"
 import { useCart } from "@/lib/cart/cart-context"
 import { getPlaceholderImage } from "@/lib/placeholder-image"
 import { AttributeButtonGroup } from "./attribute-button-group"
@@ -126,6 +128,46 @@ function ProductPurchasePanel({ product }: { product: CatalogProductDto }) {
         <Button size="lg" disabled={!canAddToCart} className="min-h-11 w-full" onClick={handleAddToCart}>
           {isOutOfStock ? "Tükendi" : "Sepete Ekle"}
         </Button>
+
+        {/*
+          VIDEO 09 (D030) — Shopier ARTIK checkout içindeki bir ödeme yöntemi
+          DEĞİL, ayrı bir kartlı satış kanalıdır. Bu yüzden yukarıdaki "Sepete
+          Ekle" akışı (bizim sepet → checkout → Havale/EFT siparişi) hiçbir
+          şekilde değişmez; bu CTA onun yerine geçmez, yanına eklenir.
+
+          STOK: "Sepete Ekle" stoğumuz bittiğinde "Tükendi" olup disabled olur.
+          Shopier AYRI bir kanaldır ve kendi stoğunu kendisi yönetir — bu yüzden
+          `isOutOfStock` bu CTA'yı BİLİNÇLİ OLARAK etkilemez.
+
+          URL: yalnızca sunucuda doğrulanmış `product.shopierUrl` kullanılır;
+          hiçbir client state/prop/query param'dan türetilmez (açık yönlendirme
+          riski). Değer yoksa CTA hiç render edilmez — boş ya da disabled bir
+          buton gösterilmez.
+
+          `Button` primitive'i Base UI tabanlı ve bir `asChild` API'si sunmuyor;
+          projedeki mevcut "link görünümlü buton" deseni (bkz. `app/(storefront)/
+          sepet/page.tsx`) gereği `buttonVariants` doğrudan `<a>` üzerine
+          uygulanır. `min-h-11` (44px) notu için bkz. yukarıdaki yorum.
+        */}
+        {product.shopierUrl && (
+          <>
+            <a
+              href={product.shopierUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={cn(buttonVariants({ variant: "outline", size: "lg" }), "min-h-11 w-full")}
+            >
+              Shopier&apos;den Satın Al
+              <ExternalLink aria-hidden="true" />
+              <span className="sr-only">(yeni sekmede açılır)</span>
+            </a>
+            {/* Shopier hakkında doğrulanmamış hiçbir iddia yok (D010) — yalnızca
+                kanalın ayrı olduğunu söyleyen nötr tek satır. */}
+            <p className="text-metadata text-muted-foreground lg:text-metadata-lg">
+              Shopier, ayrı bir kartlı ödeme kanalıdır; sipariş Shopier üzerinden tamamlanır.
+            </p>
+          </>
+        )}
       </div>
     </div>
   )

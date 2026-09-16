@@ -15,7 +15,6 @@ import { FormField } from "@/components/ui/form-field"
 import { Button } from "@/components/ui/button"
 import { useToast } from "@/components/ui/toast"
 import { CartSummary } from "@/components/cart/cart-summary"
-import { PaymentMethodSelector } from "./payment-method-selector"
 
 interface FormValues {
   fullName: string
@@ -38,6 +37,10 @@ const INITIAL_VALUES: FormValues = {
   district: "",
   postalCode: "",
   giftPackagingSelected: false,
+  // D030 — SABİT. Payload'ı tek yerden kurabilmek için form state'inde
+  // tutulur, ama kullanıcı tarafından DEĞİŞTİRİLEMEZ (ekranda bir seçici
+  // yoktur). Asıl kısıtlama zaten sunucu tarafındaki `checkoutInputSchema`'nın
+  // tek değerli literal'ıdır — burası yalnızca onun UI karşılığıdır.
   paymentMethod: PaymentMethod.BANK_TRANSFER,
 }
 
@@ -255,10 +258,21 @@ function CheckoutForm() {
 
         <section className="flex flex-col gap-4">
           <h2 className="font-display text-xl text-foreground">Ödeme Yöntemi</h2>
-          <PaymentMethodSelector
-            value={values.paymentMethod}
-            onValueChange={(value) => updateField("paymentMethod", value)}
-          />
+          {/*
+            D030 — bu checkout akışında SEÇİLEBİLİR bir ödeme yöntemi YOKTUR.
+            Shopier artık checkout'un içindeki bir ödeme sağlayıcısı değil,
+            AYRI bir kartlı satış kanalıdır (ürün detayındaki "Shopier'den
+            Satın Al" CTA'sı). Geriye tek yöntem kaldığı için bir radio grubu
+            göstermek müşteriye sahte bir seçim sunardı; bunun yerine bundan
+            sonra ne olacağını anlatan sabit bir bilgi kartı gösteriyoruz.
+          */}
+          <div className="flex flex-col gap-0.5 rounded-md border border-border px-4 py-3">
+            <span className="text-sm font-medium text-foreground">Havale / EFT</span>
+            <span className="text-xs text-muted-foreground">
+              Siparişiniz oluşturulduktan sonra banka/IBAN bilgileri gösterilecek ve havale
+              açıklamasına sipariş numaranızı yazmanız istenecek.
+            </span>
+          </div>
           {fieldErrors.paymentMethod && (
             <p className="text-xs text-destructive">{fieldErrors.paymentMethod}</p>
           )}

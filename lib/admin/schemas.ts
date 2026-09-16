@@ -11,7 +11,7 @@
  * güvenle çevrilir.
  */
 import { z } from "zod"
-import { ProductStatus, OrderStatus, PaymentMethod } from "../generated/prisma/enums"
+import { ProductStatus, OrderStatus, PaymentMethod, PaymentStatus } from "../generated/prisma/enums"
 
 const decimalPriceSchema = z
   .string()
@@ -155,5 +155,44 @@ export const orderListFilterSchema = z.object({
   orderNumber: z.string().trim().optional(),
   orderStatus: orderStatusSchema.optional(),
   paymentMethod: z.enum([PaymentMethod.SHOPIER, PaymentMethod.BANK_TRANSFER]).optional(),
+  /**
+   * VIDEO 09 — admin havale kuyruğunun temeli: `paymentMethod=BANK_TRANSFER`
+   * + `paymentStatus=PENDING` filtresi, D007'deki manuel ödeme onayının
+   * çalışma listesini verir. Yalnızca FİLTREdir; `paymentStatus` bu şemayla
+   * DEĞİŞTİRİLEMEZ (bkz. `updateOrderStatusSchema`'nın üstündeki not).
+   */
+  paymentStatus: z.enum([PaymentStatus.PENDING, PaymentStatus.CONFIRMED, PaymentStatus.FAILED]).optional(),
 })
 export type OrderListFilterInput = z.infer<typeof orderListFilterSchema>
+
+// ---------------------------------------------------------------------------
+// VIDEO 09 / D030 — Shopier bağlantı yönetimi
+// ---------------------------------------------------------------------------
+
+/**
+ * Bir ürünü, Shopier'de kayıtlı satış sayfasına bağlar veya bağlantıyı
+ * kaldırır. D030: Shopier artık checkout içindeki bir ödeme sağlayıcısı
+ * değil, AYRI bir kartlı satış kanalıdır — bu yüzden bağlantı ürün
+ * seviyesinde bir alan olarak yönetilir.
+ */
+export const updateProductShopierLinkSchema = z.object({
+  // Proje konvansiyonu: sahiplik/ebeveyn kontrolü yapan her serviste scoping
+  // id ZORUNLUDUR (bkz. `updateVariantSchema`'daki `productId` notu).
+  productId: nonEmptyString("Ürün id"),
+  /** Boş string = bağlantıyı KALDIR (hem url hem productId `null` olur). */
+  shopierUrl: z.string().trim(),
+})
+export type UpdateProductShopierLinkInput = z.infer<typeof updateProductShopierLinkSchema>
+
+/**
+ * Ödeme onayı/reddi girdisi (bkz. `lib/admin/payments.ts`). Bilinçli olarak
+ * YALNIZCA `orderId` taşır: hedef ödeme durumu (CONFIRMED/FAILED) client'tan
+ * GELMEZ, hangi fonksiyonun çağrıldığından belli olur. Böylece client, bir
+ * alan değiştirerek siparişi keyfi bir ödeme durumuna sokamaz —
+ * `updateOrderStatusSchema`'nın `paymentStatus`'u bilinçli olarak dışarıda
+ * bırakmasıyla (bkz. `lib/admin/orders.ts` başlığı, D026) aynı disiplin.
+ */
+export const orderPaymentActionSchema = z.object({
+  orderId: nonEmptyString("Sipariş id"),
+})
+export type OrderPaymentActionInput = z.infer<typeof orderPaymentActionSchema>

@@ -16,6 +16,9 @@ import {
   reorderProductImagesAsAdmin,
   setMainProductImageAsAdmin,
 } from "@/lib/admin"
+// VIDEO 09 — barrel (`@/lib/admin`) henüz bu fonksiyonu dışa açmıyor olabilir;
+// doğrudan modülden import ediliyor (barrel yalnızca bir kolaylık katmanı).
+import { updateProductShopierLink } from "@/lib/admin/products"
 
 export interface AdminActionFailure {
   success: false
@@ -38,6 +41,27 @@ export async function updateProductAction(input: unknown): Promise<AdminActionFa
   if (!result.success) return result
   revalidatePath(`/admin/products/${result.product.id}`)
   revalidatePath("/admin/products")
+}
+
+// ---------------------------------------------------------------------------
+// Shopier satış kanalı (D030) — ürünün temel bilgilerinden AYRI bir aksiyon:
+// Shopier bağlantısı bir satış kanalı kararıdır, ürün içeriği değil.
+// ---------------------------------------------------------------------------
+
+/**
+ * Boş `shopierUrl` = bağlantıyı KALDIR (bkz. `updateProductShopierLinkSchema`).
+ *
+ * Yalnızca admin sayfaları revalidate edilir: müşteri tarafındaki
+ * `app/(storefront)/urun/[slug]` zaten `force-dynamic` olduğu için her
+ * istekte güncel veriyi okur.
+ */
+export async function updateProductShopierLinkAction(
+  input: unknown,
+  productId: string
+): Promise<AdminActionFailure | undefined> {
+  const result = await updateProductShopierLink(input)
+  if (!result.success) return result
+  revalidatePath(`/admin/products/${productId}`)
 }
 
 // ---------------------------------------------------------------------------

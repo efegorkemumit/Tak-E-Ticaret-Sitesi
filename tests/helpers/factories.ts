@@ -3,6 +3,11 @@ import { testPrisma } from "./test-prisma"
 import { ProductStatus } from "../../lib/generated/prisma/client"
 import type { CheckoutInput } from "../../lib/commerce/checkout-schema"
 import { hashPassword, issueSession } from "../../lib/auth"
+import {
+  SITE_SETTINGS_ID,
+  DEFAULT_TRANSFER_DESCRIPTION_TEMPLATE,
+  DEFAULT_RESERVATION_WINDOW_HOURS,
+} from "../../lib/settings/constants"
 
 /**
  * DİKKAT — YIKICI İŞLEM: hedef `TEST_DATABASE_URL`'deki commerce verisinin
@@ -27,13 +32,21 @@ export async function resetCommerceTables(): Promise<void> {
   // çalıştırılana kadar fark edilmemişti — testler arası veri sızıntısına yol
   // açıyordu.
   //
+  // `SiteSettings` de aynı gerekçeyle ayrıca listeleniyor (VIDEO 09 — D032):
+  // tek satırlık (singleton) bir ayar tablosudur ve hiçbir FK ile
+  // Category/Collection/AttributeDefinition/AdminUser zincirine bağlı DEĞİLDİR,
+  // dolayısıyla onları TRUNCATE CASCADE etmek bu tabloyu TEMİZLEMEZ.
+  // Temizlenmezse ayar satırı testler arasında SIZAR: bir testte kurulan
+  // havale bilgisi/rezervasyon penceresi, "ayar hiç yokken" senaryosunu test
+  // eden bir sonraki testi sessizce anlamsız hâle getirirdi.
+  //
   // `AdminUser` de aynı gerekçeyle ayrıca listeleniyor (VIDEO 07 — D025).
   // `AdminSession`'ı AYRICA eklemeye gerek YOK: şemada
   // `AdminSession.adminUser` ilişkisi `onDelete: Cascade` (bkz.
   // `prisma/schema.prisma`) — `AdminUser`'ı TRUNCATE CASCADE etmek zaten
   // tüm bağlı `AdminSession` satırlarını da siler.
   await testPrisma.$executeRawUnsafe(
-    'TRUNCATE TABLE "Order", "Category", "Collection", "AttributeDefinition", "AdminUser" RESTART IDENTITY CASCADE'
+    'TRUNCATE TABLE "Order", "Category", "Collection", "AttributeDefinition", "AdminUser", "SiteSettings" RESTART IDENTITY CASCADE'
   )
 }
 
@@ -209,6 +222,55 @@ export function buildCheckoutInput(overrides: Partial<CheckoutInput> & { items: 
     giftPackagingSelected: overrides.giftPackagingSelected ?? false,
     paymentMethod: overrides.paymentMethod ?? "BANK_TRANSFER",
   }
+}
+
+// -----------------------------------------------------------------------------
+// Site ayarı fixture'ları (VIDEO 09 — D032)
+// -----------------------------------------------------------------------------
+
+/**
+ * Testlerde kullanılan GEÇERLİ TR IBAN'ı (mod-97 sağlaması doğru). Gerçek bir
+ * hesaba ait DEĞİLDİR — yalnızca biçim/sağlama toplamı doğrulamasını geçen
+ * sentetik bir değerdir (PROJECT_BRIEF Bölüm 13'ün "gerçek banka bilgisi
+ * repoya girmez" kuralı).
+ */
+export const VALID_TEST_IBAN = "TR330006100519786457841326"
+
+/** İkinci, farklı ama yine GEÇERLİ bir TR IBAN — güncelleme testleri için. */
+export const VALID_TEST_IBAN_ALTERNATIVE = "TR320010009999901234567890"
+
+/**
+ * `SiteSettings` singleton satırını DOĞRUDAN `testPrisma` ile oluşturur
+ * (gerçek `updateSiteSettings` akışını ve dolayısıyla admin oturumu
+ * gereksinimini ATLAR). Amacı, "ayar kurulmuş bir sistem" ön koşulunu, o
+ * akışın kendi testine bağımlı olmadan kurmaktır — `createActiveReservation`
+ * ile aynı gerekçe.
+ */
+export async function createSiteSettings(overrides?: {
+  bankName?: string
+  accountHolder?: string
+  iban?: string
+  transferDescriptionTemplate?: string
+  reservationWindowHours?: number
+}): Promise<void> {
+  await testPrisma.siteSettings.upsert({
+    where: { id: SITE_SETTINGS_ID },
+    create: {
+      id: SITE_SETTINGS_ID,
+      bankName: overrides?.bankName ?? "Test Bankası",
+      accountHolder: overrides?.accountHolder ?? "Test Hesap Sahibi",
+      iban: overrides?.iban ?? VALID_TEST_IBAN,
+      transferDescriptionTemplate: overrides?.transferDescriptionTemplate ?? DEFAULT_TRANSFER_DESCRIPTION_TEMPLATE,
+      reservationWindowHours: overrides?.reservationWindowHours ?? DEFAULT_RESERVATION_WINDOW_HOURS,
+    },
+    update: {
+      bankName: overrides?.bankName ?? "Test Bankası",
+      accountHolder: overrides?.accountHolder ?? "Test Hesap Sahibi",
+      iban: overrides?.iban ?? VALID_TEST_IBAN,
+      transferDescriptionTemplate: overrides?.transferDescriptionTemplate ?? DEFAULT_TRANSFER_DESCRIPTION_TEMPLATE,
+      reservationWindowHours: overrides?.reservationWindowHours ?? DEFAULT_RESERVATION_WINDOW_HOURS,
+    },
+  })
 }
 
 // -----------------------------------------------------------------------------

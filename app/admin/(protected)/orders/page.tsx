@@ -32,25 +32,33 @@ export const dynamic = "force-dynamic"
 export default async function AdminOrdersPage({
   searchParams,
 }: {
-  searchParams: Promise<{ orderNumber?: string; orderStatus?: string; paymentMethod?: string }>
+  searchParams: Promise<{ orderNumber?: string; orderStatus?: string; paymentMethod?: string; paymentStatus?: string }>
 }) {
   const params = await searchParams
   const orders = await listOrdersForAdmin({
     orderNumber: params.orderNumber,
     orderStatus: params.orderStatus,
     paymentMethod: params.paymentMethod,
+    paymentStatus: params.paymentStatus,
   })
   const details = await Promise.all(orders.map((order) => getOrderDetailById(order.id)))
   const rows = orders.map((order, index) => ({ ...order, customerName: details[index]?.contact.fullName ?? "—" }))
 
   return (
     <div>
-      <AdminPageHeader title="Siparişler" description="Ödeme durumu (D026) yalnızca görüntülenir — yalnızca sipariş durumu buradan değiştirilir." />
+      {/* VIDEO 09 — D026 gevşetildi: havale ödemeleri artık bu panelden
+          onaylanıp reddedilebiliyor (sipariş detayındaki "Ödeme" kartı).
+          Eski "ödeme durumu yalnızca görüntülenir" ifadesi geçersiz. */}
+      <AdminPageHeader
+        title="Siparişler"
+        description="Sipariş durumunu buradan yönetin; havale ödemelerini sipariş detayındaki Ödeme kartından onaylayın."
+      />
 
       <OrderFilterForm
         initialOrderNumber={params.orderNumber ?? ""}
         initialOrderStatus={params.orderStatus ?? ""}
         initialPaymentMethod={params.paymentMethod ?? ""}
+        initialPaymentStatus={params.paymentStatus ?? ""}
       />
 
       {rows.length === 0 ? (

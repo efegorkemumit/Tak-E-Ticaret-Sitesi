@@ -21,7 +21,7 @@ import { lockVariantsForUpdate, assertSufficientStock } from "./stock"
 import { buildOrderItemCreateInputs } from "./order-items"
 import { buildReservationCreateInputs } from "./reservations"
 import { generateOrderNumber } from "./order-number"
-import { RESERVATION_WINDOW_HOURS } from "./constants"
+import { getReservationWindowHours } from "../settings/service"
 import { CommerceError, IdempotencyKeyConflictError, isUniqueConstraintViolation } from "./errors"
 
 type OrderWithItems = PrismaNS.OrderGetPayload<{ include: { items: true } }>
@@ -105,7 +105,14 @@ export async function createOrder(rawInput: CheckoutInput, client: PrismaClient 
 
       const pricing = calculateOrderPricing(resolvedItems)
       const orderNumber = await generateUniqueOrderNumber(tx)
-      const expiresAt = new Date(Date.now() + RESERVATION_WINDOW_HOURS * 60 * 60 * 1000)
+
+      // D018 — rezervasyon penceresi artık panelden yönetilir
+      // (`SiteSettings.reservationWindowHours`). AYNI `tx` ile okunur:
+      // sipariş yazımıyla aynı anlık görüntüyü görsün ve transaction dışından
+      // ikinci bir bağlantı açılmasın diye. Ayar satırı hiç yoksa
+      // `RESERVATION_WINDOW_HOURS` fallback'ine düşer (bkz. `./constants.ts`).
+      const reservationWindowHours = await getReservationWindowHours(tx)
+      const expiresAt = new Date(Date.now() + reservationWindowHours * 60 * 60 * 1000)
 
       return tx.order.create({
         data: {

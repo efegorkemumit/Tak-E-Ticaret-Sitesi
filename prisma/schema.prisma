@@ -170,6 +170,25 @@ model Product {
   /// özniteliğinden (aşağıda) en kritik yapısal farktır.
   descriptiveAttributes ProductAttributeValue[]
 
+  /// VIDEO 09 / D030 — Shopier, bu projede checkout içindeki bir ödeme
+  /// SAĞLAYICISI DEĞİL, AYRI bir kartlı satış kanalıdır. Bu iki alan yalnızca
+  /// "bu ürünün Shopier'de bir karşılığı var mı ve satış sayfası nerede"
+  /// bilgisini taşır; katalog/stok/fiyat için doğruluk kaynağı HER ZAMAN bu
+  /// veritabanıdır (Shopier'den geri okuma yapılmaz).
+  ///
+  /// `@unique` — aynı Shopier ürünü iki farklı Product'a bağlanamaz; bu,
+  /// tekrar çalıştırılan bir senkronizasyonun duplicate eşleşme üretmesine
+  /// karşı DB seviyesindeki nihai garantidir (uygulama katmanındaki "önce
+  /// ara, sonra ekle" kontrolü tek başına yarış koşulu taşır).
+  shopierProductId String? @unique
+
+  /// Shopier'in public satış URL'i (ör. `https://www.shopier.com/50216312`).
+  /// ASLA bir client isteğinden okunmaz — storefront CTA'sı yalnızca bu DB
+  /// alanını kullanır ve alan yazılırken sunucu tarafında izinli Shopier
+  /// domain'lerine karşı doğrulanır (bkz. `lib/shopier/url.ts`), böylece
+  /// open redirect / link injection yüzeyi oluşmaz.
+  shopierUrl String?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -376,7 +395,7 @@ model Order {
   /// edilmesi beklenir — bu alanın kendisi bir durum geçişini ZORLAMAZ, yalnızca
   /// audit amaçlı bir zaman damgasıdır (durum geçiş iş mantığı bu turun kapsamı
   /// dışında, admin domain servisleri Wave B'nin konusu).
-  shippedAt DateTime?
+  shippedAt       DateTime?
 
   paymentMethod PaymentMethod
   /// Payments'tan gelen jenerik sinyal — Order'ın kendi orderStatus'undan
@@ -474,11 +493,11 @@ model InventoryReservation {
 /// müdahalesi/yeniden deploy olmadan değiştirebilir. D005 gereği bilinçli
 /// olarak bir rol alanı YOKTUR — tek temel admin rolü.
 model AdminUser {
-  id           String   @id @default(cuid())
-  email        String   @unique
+  id           String    @id @default(cuid())
+  email        String    @unique
   passwordHash String
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
   lastLoginAt  DateTime?
 
   sessions AdminSession[]
@@ -498,13 +517,56 @@ model AdminSession {
 
   tokenHash String @unique
 
-  expiresAt  DateTime
-  createdAt  DateTime  @default(now())
+  expiresAt DateTime
+  createdAt DateTime  @default(now())
   /// NULL = hâlâ geçerli. Dolu = logout veya başka bir nedenle iptal edildi;
   /// bu satır, `tokenHash` ile eşleşen ham token tekrar sunulsa bile artık
   /// kabul edilmez (bkz. `getCurrentAdmin`).
-  revokedAt  DateTime?
+  revokedAt DateTime?
 
   @@index([adminUserId])
   @@index([expiresAt])
+}
+
+// -----------------------------------------------------------------------------
+// SiteSettings (VIDEO 09) — tek satırlık (singleton) işletme ayarları
+// -----------------------------------------------------------------------------
+
+/// Havale/EFT akışının gerçek banka bilgisi + D018'in "bekleme süresi
+/// panelden değiştirilebilir olacak" gereksiniminin karşılığı.
+///
+/// Bilinçli olarak TEK SATIR (singleton) bir tablodur: `id` her zaman sabit
+/// `SITE_SETTINGS_ID` değerini alır (bkz. `lib/settings/constants.ts`),
+/// böylece "hangi ayar satırı geçerli?" diye bir seçim mantığı hiç doğmaz ve
+/// `upsert` doğal olarak idempotent olur.
+///
+/// IBAN gibi kritik ödeme bilgisi yalnızca kimliği doğrulanmış admin
+/// tarafından değiştirilebilir (bkz. `lib/settings/service.ts` →
+/// `requireAdmin`); client'tan gelen hiçbir değer doğrudan güvenilir kabul
+/// edilmez.
+model SiteSettings {
+  id String @id
+
+  /// Havale yapılacak bankanın adı (ör. "Ziraat Bankası").
+  bankName String
+
+  /// Hesap sahibinin adı — müşterinin havale ekranında göreceği ad.
+  accountHolder String
+
+  /// TR IBAN. Boşluklarından arındırılmış, BÜYÜK harfli kanonik biçimde
+  /// saklanır (gösterimde 4'lü gruplara ayrılır) — aynı IBAN'ın iki farklı
+  /// biçimde saklanıp karşılaştırmayı/kopyalamayı bozmasını önlemek için.
+  iban String
+
+  /// Havale açıklaması şablonu. `{orderNumber}` yer tutucusu sipariş
+  /// numarasıyla değiştirilir (ör. "Sipariş {orderNumber}").
+  transferDescriptionTemplate String @default("Sipariş {orderNumber}")
+
+  /// D018 — havale siparişinin stok rezervasyonunun kaç saat sonra otomatik
+  /// serbest bırakılacağı. Varsayılan 24. `lib/commerce/constants.ts`'teki
+  /// sabit artık yalnızca ayar satırı HİÇ YOKSA kullanılan fallback'tir.
+  reservationWindowHours Int @default(24)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }

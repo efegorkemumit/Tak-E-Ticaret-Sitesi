@@ -10,8 +10,10 @@ import { AdminFormSection } from "@/components/admin/form-section"
 import { ProductVariantsSection } from "@/components/admin/product-variants-section"
 import { ProductImagesSection } from "@/components/admin/product-images-section"
 import { ProductDescriptiveAttributesSection } from "@/components/admin/product-descriptive-attributes-section"
+import { ProductShopierSection } from "@/components/admin/product-shopier-section"
 import {
   updateProductAction,
+  updateProductShopierLinkAction,
   createVariantAction,
   updateVariantAction,
   updateVariantStockAction,
@@ -79,6 +81,20 @@ export default async function EditAdminProductPage({ params }: { params: Promise
           deleteAction={deleteProductImageAction}
           reorderAction={reorderProductImagesAction}
           setMainAction={setMainProductImageAction}
+        />
+      </AdminFormSection>
+
+      {/* D030 — Shopier ayrı bir satış kanalı: bağlantı bilgisi ürünün temel
+          bilgi formunda DEĞİL, kendi bölümünde ve kendi aksiyonunda. */}
+      <AdminFormSection
+        title="Shopier Satış Kanalı"
+        description="Bu ürünün Shopier'deki satış sayfası. Sitedeki sepet/checkout akışından bağımsızdır."
+      >
+        <ProductShopierSection
+          productId={product.id}
+          shopierProductId={product.shopierProductId}
+          shopierUrl={product.shopierUrl}
+          action={updateProductShopierLinkAction}
         />
       </AdminFormSection>
 

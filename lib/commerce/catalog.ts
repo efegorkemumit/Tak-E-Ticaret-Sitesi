@@ -32,6 +32,7 @@ import { ProductStatus } from "../generated/prisma/client"
 import type { Prisma, PrismaClient } from "../generated/prisma/client"
 import { prisma } from "../prisma"
 import { getAvailabilityStatus, getAvailableQuantities } from "./availability"
+import { validateShopierUrl } from "../shopier/url"
 import type { AvailabilityStatus } from "./availability"
 
 export type { AvailabilityStatus } from "./availability"
@@ -107,6 +108,14 @@ export interface CatalogProductDto {
    */
   descriptiveAttributes: CatalogAttributeDto[]
   variants: CatalogVariantDto[]
+  /**
+   * D030 (VIDEO 09) — Shopier ARTIK checkout içindeki bir ödeme sağlayıcısı
+   * DEĞİL, AYRI bir kartlı satış kanalıdır: ürün detayındaki CTA müşteriyi
+   * bu ürünün kayıtlı Shopier satış sayfasına götürür. Bu ürünün Shopier'de
+   * bir karşılığı yoksa (veya kayıtlı değer doğrulamadan geçmiyorsa) `null`
+   * olur ve storefront CTA'yı hiç göstermez.
+   */
+  shopierUrl: string | null
 }
 
 export interface CatalogTaxonomyDto {
@@ -142,6 +151,12 @@ const PRODUCT_INCLUDE = {
 
 type ProductWithRelations = Prisma.ProductGetPayload<{ include: typeof PRODUCT_INCLUDE }>
 
+/** Yalnızca doğrulamadan geçen, kanonik hâle getirilmiş Shopier url'i dışarı verilir. */
+function resolvePublicShopierUrl(rawUrl: string | null): string | null {
+  const result = validateShopierUrl(rawUrl)
+  return result.ok ? result.url : null
+}
+
 function mapProductWithAvailability(
   product: ProductWithRelations,
   availabilityByVariantId: Map<string, number>
@@ -154,6 +169,14 @@ function mapProductWithAvailability(
     careInfo: product.careInfo,
     giftPackagingAvailable: product.giftPackagingAvailable,
     categorySlug: product.category.slug,
+    // DEFENSE IN DEPTH: DB'deki değer admin formunda zaten doğrulanarak
+    // yazılıyor (bkz. `lib/admin/products.ts` → `updateProductShopierLink`),
+    // ama storefront'a çıkarken BİR KEZ DAHA doğrulanır. Neden: alan geçmişte
+    // başka bir yoldan (elle SQL, seed, eski bir migration) doldurulmuş
+    // olabilir; doğrulamadan geçmeyen bir değeri müşteriye `href` olarak
+    // vermek, kullanıcıyı bizim kontrol etmediğimiz bir adrese yönlendirmek
+    // demektir. Yalnızca KANONİK biçim dışarı verilir.
+    shopierUrl: resolvePublicShopierUrl(product.shopierUrl),
     collectionSlugs: product.collections.map((join) => join.collection.slug),
     images: product.images.map((image) => ({
       url: image.url,

@@ -4,6 +4,8 @@
 
 ---
 
+> **VIDEO 09 güncellemesi (D030–D034) — bu belgenin en önemli değişikliği:** Shopier artık checkout'un içindeki bir ödeme sağlayıcısı DEĞİLDİR. Sistem artık **iki ayrı satın alma kanalı** taşır (bkz. yeni §3.1). Aşağıdaki §4.2/§4.3 kontratları ve §5.3'teki "Shopier redirect/nextStep" tasarımı, Shopier'in bizim checkout'umuza gömüleceği varsayımı üzerine kurulmuştu; bu varsayım D030 ile GEÇERSİZDİR. İlgili paragraflar yerinde işaretlenmiştir — geçmiş silinmemiştir.
+
 ## 1. System Overview
 
 Sistem, Next.js + TypeScript + Tailwind CSS + shadcn/ui + PostgreSQL + Prisma teknoloji setiyle (CONFIRMED, `docs/PROJECT_BRIEF.md`) kurulacak, guest-checkout tabanlı (D004), tek admin rollü (D005), Türkiye pazarına (D001), Türkçe (D002) ve TRY (D003) para birimine yönelik bir e-ticaret sistemidir. Müşteri tarafı (storefront) ve yönetim paneli (admin), ortak bir commerce domain'i üzerinden çalışır; ödeme, sağlayıcıdan bağımsız bir soyutlama (D008) arkasında Shopier ve Havale/EFT (D006) olmak üzere iki yöntemi destekler.
@@ -37,6 +39,23 @@ Commerce domain'i, `jewelry-commerce` skill'inin terminolojisiyle tutarlı şu v
 
 Bu sınırların en kritik ilkesi: **Order ownership tamamen commerce'te kalır; payments Order domainini yeniden tasarlamaz veya Order.status'a doğrudan yazmaz.**
 
+### 3.1 İki Satın Alma Kanalı (D030)
+
+Sistemde birbirinden bilinçli olarak AYRI tutulan iki satın alma yolu vardır. Bu ayrım mimarinin bir uzlaşması değil, doğrulanmış bir gerçekliğin (D009'un öngördüğü Shopier araştırması gerçek hesap üzerinde yapıldı) doğrudan sonucudur.
+
+| | **Kanal A — Havale/EFT** | **Kanal B — Shopier** |
+|---|---|---|
+| Giriş noktası | Ürün detayındaki **"Sepete Ekle"** | Ürün detayındaki **"Shopier'den Satın Al"** |
+| Akış | Cart (client-side, D022) → Checkout → `Order` | Kayıtlı Shopier ürün sayfasına yönlendirme |
+| Sipariş kaydı | Bizim `Order` tablomuz | Shopier'in kendi sistemi — **bizim `Order` tablomuzda YOKTUR** |
+| Ödeme durumu | `paymentStatus`, admin panelinden onaylanır/reddedilir (D033) | Shopier panelinde yönetilir, bizim panelimizde görünmez |
+| Stok | `InventoryReservation` + `Variant.stockQuantity` (D018) | Shopier'in kendi stok alanı; **bizim DB'miz katalog/stok için source of truth olmaya devam eder**, Shopier'e tek yönlü yazılır, Shopier'den geri OKUNMAZ |
+| Bağlantı | — | `Product.shopierProductId` + `Product.shopierUrl` |
+
+**Sınır kuralı:** Bir Shopier siparişi ≠ bizim BANK_TRANSFER siparişimiz. Bu turda Shopier siparişlerini `Order` tablosuna eşleyen hiçbir mekanizma yazılmamıştır ve doğrulanmamış bir eşleştirme UYDURULMAMIŞTIR (D010).
+
+**Güvenlik kuralı:** `shopierUrl` her zaman sunucudan/DB'den gelir; asla bir client isteği parametresinden okunmaz. Hem yazma anında (admin mutasyonu) hem okuma anında (katalog DTO'su) izinli Shopier domain'lerine karşı doğrulanır (`lib/shopier/url.ts`) — open redirect / link injection yüzeyi bilinçli olarak kapatılmıştır.
+
 ## 4. Cross-Module Contracts
 
 Aşağıdaki üç kontrat, storefront↔commerce↔payments arasında yürütülen contract alignment turunda (`CONTRACT_ALIGNMENT: PASS`) üç tarafça da mutabık kalınmıştır. Tamamı alan-seviyeli/kavramsaldır — kod veya şema değildir — ve ilgili OPEN kararlardan (#4, #9) bağımsız çalışacak şekilde tasarlanmıştır (#8 stok politikası artık D018 ile kesinleşti, bkz. §7).
@@ -52,11 +71,13 @@ Checkout submit sırasında storefront'un commerce'e gönderdiği minimum alanla
 - `contact`: fullName, phone, email.
 - `deliveryAddress`: addressLine, city, district, postalCode, country (sabit `"TR"` — D001).
 - `giftPackagingSelected`: opsiyonel boolean — checkout'a etkisi (ücret vb.) hâlâ OPEN (`docs/PROJECT_BRIEF.md` Bölüm 10); backend şimdilik yalnızca kaydeder, ücretlendirme mantığı yoktur.
-- `paymentMethod`: `"SHOPIER" | "BANK_TRANSFER"` (D006) — provider'a özgü hiçbir alan bu istekte yer almaz.
+- `paymentMethod`: **`"BANK_TRANSFER"` (tek kabul edilen değer — D030).** D006 hâlâ iki ödeme yöntemi tanımlar, ama Shopier artık bu checkout akışının İÇİNDE değildir (bkz. §3.1); checkout şeması başka bir değeri kabul etmez. Prisma `PaymentMethod` enum'undaki `SHOPIER` değeri yalnızca geçmiş `Order` kayıtları için korunur. Provider'a özgü hiçbir alan bu istekte yer almaz.
 
 **Kritik ilke — client'tan gelen hiçbir fiyat/toplam/stok/availability/ürün adı otoritatif değildir (D022):** Commerce, isteği işlerken yalnızca `items[].variantId` ve `items[].quantity` alanlarına güvenir. Her `variantId` için güncel fiyat, stok/availability ve ürün/varyant bilgisi **veritabanından yeniden çözülür**; satır toplamları ve genel toplam sunucu tarafında yeniden hesaplanır. Storefront'un checkout ekranında gösterdiği fiyat/toplam yalnızca bir önizlemedir — sipariş, isteğe eklenmiş olsa bile hiçbir client-taraflı fiyat/toplam alanını kullanmaz. Bu, hem D022'nin "client verisi güvenilmez" ilkesiyle hem de sepetin artık sunucuda kalıcı bir kayıt olmamasıyla (dolayısıyla sunucunun tek doğruluk kaynağının kendi Variant tablosu olmasıyla) tutarlıdır.
 
 ### 4.2 Commerce → Payments Kontratı
+
+> **VIDEO 09 notu (D030):** Bu kontrat, payments'ın harici bir sağlayıcıya (Shopier) sipariş ileteceği varsayımıyla yazılmıştı. Bugün gerçekte harici bir sağlayıcıya iletilen hiçbir sipariş YOKTUR — Havale/EFT'te ödemeyi onaylayan/reddeden taraf admin'in kendisidir (D007/D033), Shopier ise bizim `Order` akışımızın tamamen dışındadır. Aşağıdaki alan listesi, ileride gerçek bir sağlayıcı entegrasyonu yazılırsa başlangıç noktası olarak korunur.
 
 Commerce, Order oluşturduktan sonra payments'a minimum şu bilgiyi verir:
 
@@ -64,6 +85,8 @@ Commerce, Order oluşturduktan sonra payments'a minimum şu bilgiyi verir:
 - **Bilinçli olarak dışarıda bırakılan:** müşteri PII'si (isim/adres/telefon) ve line-item kırılımı. Shopier'in gerçek entegrasyon yöntemi netleşmeden (D009/D010) bunlara ihtiyaç olup olmadığı bilinmediği için commerce bunları baştan itmez; payments gerekirse `orderId` üzerinden on-demand sorgular.
 
 ### 4.3 Payments → Commerce Kontratı
+
+> **VIDEO 09 notu (D030/D033):** Bu kontratın bugünkü TEK gerçek uygulaması, admin panelindeki "Ödemeyi Onayla"/"Ödemeyi Reddet" aksiyonlarıdır (`lib/admin/payments.ts`). Bir webhook/callback transport'u YOKTUR ve Shopier için varsayılmamıştır (D010). `paymentStatus` değer kümesi ve "Shopier'e özgü durum adı kullanılmaz" ilkesi aynen geçerlidir.
 
 Payments, sonucu commerce'e (transport mekanizmasından bağımsız) şu minimum alanlarla bildirir:
 
@@ -86,13 +109,15 @@ Bu bölüm, security'nin planlama raporundaki trust boundary analizini beş alt 
 
 - **Güvenilir:** Baştan kimse güvenilir değildir — bu, D004 ile tutarlı, kimliksiz herhangi bir ziyaretçinin erişebileceği public bir formdur.
 - **Güvenilmez:** Sipariş numarasını bilen/tahmin eden/deneyen herhangi bir üçüncü kişi.
-- **Sınırda doğrulanması gereken:** D015 gereği sipariş numarası TEK BAŞINA yeterli değildir; sipariş no + ikinci bir doğrulama alanı (kesin alan OPEN #12) birlikte sunucu tarafında eşleşmelidir.
+- **Sınırda doğrulanması gereken:** D015 gereği sipariş numarası TEK BAŞINA yeterli değildir. **İkinci doğrulama alanı artık kesindir: e-posta (D031)** — eski OPEN #12 kapanmıştır. `orderNumber` + `email` ikilisi sunucu tarafında eşleşmelidir.
+- **Uygulama kuralları (D031):** (1) "Sipariş yok" ile "e-posta eşleşmiyor" AYNI jenerik hatayı döndürür — account enumeration engellenir. (2) E-posta karşılaştırması sabit zamanlıdır (hash + `timingSafeEqual`), böylece yanıt süresi üzerinden bilgi sızmaz. (3) Dönen DTO ad/adres/telefon/sipariş kalemi TAŞIMAZ (§5.5 ile tutarlı); yalnızca sipariş no, durum, ödeme durumu/yöntemi, tutar ve havale ise banka bilgisi döner.
 
 ### 5.3 Payment Boundary
 
 - **Order↔Payment kimlikleri:** `orderId` (dahili, kararlı, sistemsel/otomatik eşleştirmenin canonical anahtarı), `orderNumber` (yalnızca insana dönük/manuel eşleştirme — havale açıklaması, olası manuel Shopier eşleştirmesi), `orderIdempotencyKey` (storefront üretir, commerce unique constraint ile korur), `providerReference` (opak, provider'a özgü iç yapısı commerce/storefront'a hiç açılmaz).
 - **Provider-specific alanlar yalnızca payments katmanında kalır:** olası webhook/callback payload'ı, olası imza/secret doğrulama verisi, sağlayıcının kendi durum kodları, olası SDK/iframe detayları — bunların hiçbiri Shopier için henüz doğrulanmamıştır (D009/D010), yöntem netleşince payments katmanında ayrıca ele alınacaktır. Storefront ve commerce bunları hiç görmez, sınırı geçen tek şey opak `providerReference` string'idir.
-- **Storefront, provider'a özgü Shopier detaylarını (redirect/embedded/provider button) şimdiden bilmez ve bilmesine gerek yoktur.** Checkout, yalnızca jenerik, genişleyebilir `nextStep: { type: "REDIRECT" | "NONE", url? }` sözleşmesine dayanır; Shopier yöntemi (#9/D009-D010) netleşince yeni bir `type` case'i eklemek yeterli olacaktır — hiçbir mimari şimdiden kesin seçilmemiştir.
+- **~~Storefront, provider'a özgü Shopier detaylarını şimdiden bilmez; checkout jenerik bir `nextStep: { type: "REDIRECT" | "NONE", url? }` sözleşmesine dayanır.~~ → GEÇERSİZ (D030).** Shopier checkout'un içinde bir adım DEĞİLDİR, dolayısıyla checkout'ta bir `nextStep`/redirect sözleşmesine hiç ihtiyaç kalmamıştır ve böyle bir şey İNŞA EDİLMEMİŞTİR. Checkout her zaman aynı yerde biter: Havale/EFT sipariş başarı ekranı. Shopier'e yönlendirme checkout'ta değil, **ürün detay sayfasında**, DB'de kayıtlı ve doğrulanmış `Product.shopierUrl`'e giden ayrı bir bağlantıyla gerçekleşir (§3.1). Bu paragraf yalnızca kararın geçmişini göstermek için korunmuştur.
+- **Shopier link güven sınırı (YENİ, D030):** `shopierUrl` bir **çıkış (egress)** sınırıdır — müşteriyi bizim alan adımızın dışına götürür. Bu yüzden: yalnızca `https`, yalnızca allowlist'teki tam host adları (`shopier.com`/`www.shopier.com`, `endsWith` DEĞİL tam eşleşme), userinfo/port/ekstra path/query/fragment reddedilir, kabul edilen değer kanonik biçime indirgenip öyle saklanır. Bağlantı `rel="noopener noreferrer"` ile açılır.
 
 ### 5.4 Secret
 
@@ -118,6 +143,8 @@ D017 ("idempotent sipariş ve ödeme akışları") ilkesinin mimari karşılığ
 - **Defense-in-depth:** merkezi tek bir hakem yoktur — commerce kendi order/stok mutasyonunu (aynı `orderId` için ikinci kez stok düşürme/durum geçişi olmaması), payments kendi payment-status kaydını (aynı key/`providerReference` için ikinci kez yazmama) kendi tarafında bağımsız olarak korur.
 
 ## 7. Open Architecture Decisions
+
+> **VIDEO 09 kapanışları:** Shopier entegrasyon yöntemi (eski OPEN #9) artık açık değildir — gerçek hesap üzerinde doğrulanan yöntem "panelden ürün oluştur + public satış linkini DB'ye yaz"dır ve D030 olarak kaydedilmiştir. Sipariş sorgulama doğrulama alanı (eski OPEN #12) D031 ile e-posta olarak kesinleşmiştir. Rezervasyon bekleme süresinin panelden yönetilmesi (D018'in açık bıraktığı uygulama detayı) D032 ile karşılanmıştır.
 
 Aşağıdakiler bu belgede **kesinleştirilmemiştir** — mimari, hangi yönde sonuçlanırlarsa sonuçlansınlar çalışacak şekilde tasarlanmıştır:
 

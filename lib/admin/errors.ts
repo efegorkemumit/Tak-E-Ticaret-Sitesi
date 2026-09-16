@@ -37,6 +37,28 @@ export class VariantNotFoundError extends AdminServiceError {}
 export class OrderNotFoundError extends AdminServiceError {}
 export class ProductImageNotFoundError extends AdminServiceError {}
 
+/**
+ * Ödeme onayı/reddi, siparişin MEVCUT ödeme/sipariş durumuyla bağdaşmıyor
+ * (ör. iptal edilmiş bir siparişin ödemesini onaylamaya, ya da onaylanmış bir
+ * ödemeyi reddetmeye çalışmak). Aynı işlemin ZARARSIZ TEKRARI (idempotent
+ * no-op) bu hata DEĞİLDİR — o durumda `alreadyApplied: true` döner, bkz.
+ * `lib/admin/payments.ts`.
+ *
+ * `message` doğrudan admin'e gösterilebilecek Türkçe bir metindir (D002);
+ * hiçbir iç detay/ham Prisma hatası taşımaz.
+ */
+export class InvalidPaymentStateError extends AdminServiceError {}
+
+/**
+ * Ödeme onaylanırken fiziksel stok, rezerve edilmiş miktarı karşılamıyor
+ * (`Variant.stockQuantity < rezervasyon quantity`). Bu, normal akışta ASLA
+ * oluşmaması gereken bir veri tutarsızlığıdır — ancak admin stok alanını elle
+ * düşürmüşse ortaya çıkabilir. Fırlatıldığında transaction rollback olur:
+ * stok da rezervasyon da ödeme durumu da DEĞİŞMEZ, yani veri negatif stoğa
+ * kaymak yerine olduğu gibi kalır ve admin durumu düzeltebilir.
+ */
+export class StockInconsistencyError extends AdminServiceError {}
+
 export class InvalidOrderStatusTransitionError extends AdminServiceError {
   constructor(
     public readonly from: string,

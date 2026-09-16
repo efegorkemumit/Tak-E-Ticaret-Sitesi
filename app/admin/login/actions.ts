@@ -1,29 +1,12 @@
 "use server"
 
 import { redirect } from "next/navigation"
-import { headers } from "next/headers"
 import { loginAdmin, setSessionCookie } from "@/lib/auth"
+import { getClientIp } from "@/lib/auth/client-ip"
 
 export interface LoginActionFailure {
   success: false
   error: { code: string; message: string }
-}
-
-/**
- * İsteğin IP'sini `headers()`'tan çıkarır (`loginAdmin` rate-limit anahtarının
- * bir parçası olarak kullanır) — `x-forwarded-for`'un İLK değeri, yoksa
- * `x-real-ip`, o da yoksa güvenli bir sabit ("unknown"; rate limit yine de
- * email bazında çalışmaya devam eder, yalnızca IP bileşeni daha az ayırt
- * edici olur).
- */
-async function getClientIp(): Promise<string> {
-  const headerList = await headers()
-  const forwardedFor = headerList.get("x-forwarded-for")
-  if (forwardedFor) {
-    const first = forwardedFor.split(",")[0]?.trim()
-    if (first) return first
-  }
-  return headerList.get("x-real-ip") ?? "unknown"
 }
 
 /**

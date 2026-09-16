@@ -22,6 +22,8 @@ export {
   updateProduct,
   addDescriptiveAttributeToProduct,
   removeDescriptiveAttributeFromProduct,
+  // VIDEO 09 / D030 — ürünün Shopier satış kanalı bağlantısı.
+  updateProductShopierLink,
 } from "./products"
 export type {
   AdminProductListItemDto,
@@ -34,6 +36,8 @@ export type {
   ProductMutationErrorCode,
   AddDescriptiveAttributeResult,
   RemoveDescriptiveAttributeResult,
+  UpdateProductShopierLinkResult,
+  ProductShopierLinkErrorCode,
 } from "./products"
 
 export { listCategoriesForAdmin, createCategory, updateCategory } from "./categories"
@@ -62,6 +66,11 @@ export type { UploadProductImageInput, UploadProductImageResult, DeleteProductIm
 export { listOrdersForAdmin, getOrderDetailById, getOrderDetailByOrderNumber, updateOrderStatus } from "./orders"
 export type { AdminOrderListItemDto, AdminOrderItemDto, AdminOrderDetailDto, UpdateOrderStatusResult, UpdateOrderStatusErrorCode } from "./orders"
 
+// VIDEO 09 / D033 — havale ödemesinin manuel onayı ve reddi. D026'nın "ödeme
+// onayı bu kapsamın dışında" sınırı bu turda kalkmıştır.
+export { confirmOrderPayment, rejectOrderPayment } from "./payments"
+export type { OrderPaymentResult, OrderPaymentErrorCode } from "./payments"
+
 export {
   AdminServiceError,
   ProductNotFoundError,
@@ -73,4 +82,6 @@ export {
   OrderNotFoundError,
   ProductImageNotFoundError,
   InvalidOrderStatusTransitionError,
+  InvalidPaymentStateError,
+  StockInconsistencyError,
 } from "./errors"

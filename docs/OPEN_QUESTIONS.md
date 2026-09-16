@@ -4,11 +4,13 @@ Bu belge, `docs/RAW_CLIENT_NOTES.md` ve `docs/PROJECT_BRIEF.md` içinde **OPEN**
 
 Proje sahibi tarafından resmî olarak karara bağlanmış konular bu listeden çıkarılır ve `docs/DECISIONS.md` içine taşınır. Bir sorunun *ilkesi* karara bağlanmış ama *uygulama detayı* hâlâ açıksa (ör. "ek doğrulama yapılacak" kesinleşti ama "e-posta mı telefon mu" açık), soru burada dar kapsamla kalmaya devam eder.
 
-Toplam 14 ana soru, 4 öncelik grubuna ayrılmıştır.
+Toplam 11 ana soru, 4 öncelik grubuna ayrılmıştır (VIDEO 09 sonrası; numaralandırma geçmişle tutarlı kalsın diye orijinal numaralar korunur, kapatılan #9/#12/#14 aşağıdaki kapanış tablosundadır).
 
 > **Revizyon notu (2. güncelleme):** Proje sahibi, panelin tek bir temel admin rolüyle çalışacağına kesin karar verdiğinden eski "#11 — Yönetim panelini kaç kişi/hangi roller kullanacak?" sorusu çözülmüş sayılarak listeden çıkarılmış ve `docs/DECISIONS.md` D005'e taşınmıştır. Sipariş sorgulamanın ek doğrulama isteyeceği (D015) ve stok politikasının ilgili modülden önce kesinleştirileceği (D016) artık kesin karar olduğundan, ilgili sorular yalnızca *uygulama detayını* soracak şekilde yeniden yazılmıştır.
 >
 > **Revizyon notu (3. güncelleme — VIDEO 06):** Proje sahibi, commerce şeması implementasyonundan önce 6 blocker kararı verdi (`docs/DECISIONS.md` D018-D023). Bunlardan stok düşme/rezervasyon politikası (eski #8) tamamen karara bağlandığı için listeden çıkarılmıştır. Varyant yapısı sorusu (#4), yapısal/mimari kısmı (SKU/fiyat/stok'un Variant seviyesinde tutulması, seçilebilir/açıklayıcı öznitelik ayrımı) karara bağlandığından yalnızca katalog içerik detayını (hangi öznitelik hangi kategoride zorunlu) soracak şekilde daraltılmıştır.
+>
+> **Revizyon notu (4. güncelleme — VIDEO 09):** Ödeme/Shopier turu gerçek Shopier hesabı üzerinde yürütüldü ve üç soru daha karara bağlanarak listeden çıkarıldı: **#9** (Shopier entegrasyon yöntemi) → `docs/DECISIONS.md` **D030**; **#12** (sipariş sorgulama doğrulama alanı) → **D031**; **#14** (fatura süreci) → **D034**. Kalan soru sayısı 11'e düşmüştür. Not: **#6/#7** (kargo ücreti / ücretsiz kargo sınırı) bu turda eklenen `SiteSettings` kaydına BİLİNÇLİ OLARAK dahil edilmemiştir — kargo ücretlendirmesi hâlâ açıktır ve MVP dışıdır (bkz. D032).
 
 ---
 
@@ -58,12 +60,6 @@ Bu sorular projenin tamamını değil, belirli bir modülü etkiler; ilgili mod�
 - **Geçici varsayım:** Panelden yönetilebilen, başlangıçta `[UCRETSIZ_KARGO_SINIRI_PLACEHOLDER]` olarak ayarlanan bir eşik değeriyle ilerlenir (0 = devre dışı da olabilir).
 - **Etkilenen modül:** Sepet/checkout modülü, admin ayarlar.
 
-### 9. Shopier hesabının kullanılabilir entegrasyon imkânları nelerdir?
-> **Not:** Bu araştırmanın ödeme modülüne gelindiğinde yapılacağı ve o ana kadar hiçbir Shopier API/webhook özelliğinin varsayılmayacağı artık kesin karardır (`docs/DECISIONS.md` D009, D010).
-- **Neden önemli?** Ödeme modülünün teknik kapsamı (ör. yönlendirme tabanlı ödeme linki mi, API entegrasyonu mu, webhook desteği var mı) bu araştırmaya bağlıdır; bu bilgi olmadan Shopier entegrasyon yöntemi kesinleştirilemez.
-- **Geçici varsayım:** Bu konuda araştırma tamamlanana kadar **hiçbir Shopier API veya checkout özelliği var sayılmaz**; ödeme sağlayıcı katmanı soyutlanmış şekilde tasarlanarak Shopier entegrasyonu ayrı bir teknik araştırma/planlama adımı olarak ele alınır.
-- **Etkilenen modül:** Ödeme modülü (Shopier entegrasyonu).
-
 ### 10. Sipariş bildirimleri e-posta ile mi, WhatsApp ile mi, ikisiyle mi gönderilecek?
 - **Neden önemli?** Bildirim altyapısının hangi servisle (e-posta sağlayıcısı ve/veya WhatsApp Business API) kurulacağını belirler.
 - **Geçici varsayım:** MVP'de otomatik müşteri bildirimi kurulmaz; sipariş durumu yalnızca sipariş sorgulama sayfasından görüntülenebilir hâlde tutulur, bildirim kanalı netleştiğinde eklenir.
@@ -73,12 +69,6 @@ Bu sorular projenin tamamını değil, belirli bir modülü etkiler; ilgili mod�
 - **Neden önemli?** Görsel tedarik süreci, ürün kataloğunun ne zaman doldurulabileceğini ve görsel kalite/lisans kontrol sürecini doğrudan etkiler.
 - **Geçici varsayım:** Görseller müşteri tarafından sağlanacak şekilde varsayılır; panel, görsel yükleme ve yönetme özelliğiyle bu sürece hazır tutulur.
 - **Etkilenen modül:** Ürün görsel yönetimi modülü (admin + müşteri tarafı galeri).
-
-### 12. Sipariş sorgulamada sipariş numarasına ek olarak hangi doğrulama bilgisi (e-posta mı, telefon mu) istenecek?
-> **Not:** Ek bir doğrulama isteneceği artık kesin karardır (`docs/DECISIONS.md` D015). Açık olan yalnızca hangi alanın kullanılacağıdır.
-- **Neden önemli?** Sorgulama yalnızca sipariş numarasıyla çalışırsa, numarayı tahmin eden/deneyen üçüncü bir kişi başka bir müşterinin adını, adresini ve sipariş içeriğini görebilir; bu bir kişisel veri sızıntısı riskidir.
-- **Geçici varsayım:** Sorgulama formu sipariş numarasına ek olarak müşterinin sipariş sırasında girdiği e-posta adresini de ister; yalnızca ikisi birlikte doğrulanırsa sipariş detayı gösterilir.
-- **Etkilenen modül:** Sipariş sorgulama modülü (müşteri tarafı).
 
 ---
 
@@ -90,11 +80,6 @@ Bu sorular geliştirmeyi bloklamaz (placeholder içerikle geliştirme sürdürü
 - **Neden önemli?** "İade ve Değişim" sayfasının gerçek içeriği ve olası bir iade sürecinin admin panelinde nasıl yönetileceği bu kurallara bağlıdır.
 - **Geçici varsayım:** Sayfa, genel/placeholder bir metinle (`[IADE_DEGISIM_KOSULLARI_PLACEHOLDER]`) yayınlanır; gerçek kurallar netleşince güncellenir. Panelde sipariş durumu listesine "İade Edildi" seçeneği eklenir, ayrıca bir iade süreci akışı MVP'de kurulmaz.
 - **Etkilenen modül:** Statik içerik sayfaları (iade/değişim), sipariş durumu listesi.
-
-### 14. Fatura süreci nasıl işleyecek?
-- **Neden önemli?** Faturanın e-fatura/e-arşiv ile mi, manuel muhasebe süreciyle mi, yoksa sistem dışı bir yöntemle mi düzenleneceği, sistemin fatura üretmesi gerekip gerekmediğini belirler.
-- **Geçici varsayım:** MVP'de sistem fatura üretmez; fatura süreci sistem dışında (müşterinin mevcut muhasebe süreciyle) yürütüldüğü varsayılır.
-- **Etkilenen modül:** Sipariş/muhasebe süreci (MVP'de sistem dışı).
 
 ---
 
@@ -118,12 +103,9 @@ Bu sorular geliştirmeyi bloklamaz (placeholder içerikle geliştirme sürdürü
 | 5 | Modül öncesi | Kargo firması | Sipariş/kargo |
 | 6 | Modül öncesi | Kargo ücreti | Sepet/checkout |
 | 7 | Modül öncesi | Ücretsiz kargo sınırı | Sepet/checkout |
-| 9 | Modül öncesi | Shopier entegrasyon yöntemi | Ödeme modülü |
 | 10 | Modül öncesi | Bildirim kanalı | Bildirim modülü |
 | 11 | Modül öncesi | Görsel tedarik kaynağı | Ürün görsel yönetimi |
-| 12 | Modül öncesi | Sipariş sorgulama doğrulama alanı | Sipariş sorgulama |
 | 13 | Canlı öncesi | İade/değişim kuralları | Statik içerik, sipariş durumu |
-| 14 | Canlı öncesi | Fatura süreci | Sipariş/muhasebe |
 | 15 | Sonraki sürüm | Shopier sonrası sağlayıcı | Ödeme mimarisi |
 
 ---
@@ -138,3 +120,6 @@ Bu sorular geliştirmeyi bloklamaz (placeholder içerikle geliştirme sürdürü
 | Stok tükenince ürün/varyant görünürlüğü ne olacak? | Product'ta stoktan bağımsız DRAFT/PUBLISHED/ARCHIVED durumu; PUBLISHED+stoksuz ürün "Tükendi" ile görünür kalır, otomatik gizlenmez. | `docs/DECISIONS.md` D021 |
 | Guest sepeti server-side mi tutulacak? | MVP'de yalnızca client-side (localStorage/cookie); server Cart tablosu yok, ama fiyat/stok/tutar checkout'ta sunucuda yeniden doğrulanır. | `docs/DECISIONS.md` D022 |
 | Product-Category/Collection ilişkisi çoktan-çoğa mı? | Category tekil FK, Collection çoktan-çoğa. | `docs/DECISIONS.md` D023 |
+| Shopier hesabının kullanılabilir entegrasyon imkânları nelerdir? (eski #9) | Gerçek hesapta doğrulanan yöntem: panelden ürün oluşturma + public satış linki. Shopier checkout'un içinde bir ödeme sağlayıcısı DEĞİL, ayrı bir satış kanalıdır; link `Product.shopierUrl`'de saklanır. | `docs/DECISIONS.md` D030 |
+| Sipariş sorgulamada hangi ek doğrulama bilgisi istenecek? (eski #12) | E-posta. Sipariş no + e-posta birlikte doğrulanır; yanlış giriş jenerik hata döndürür, PII gösterilmez. | `docs/DECISIONS.md` D031 |
+| Fatura süreci nasıl işleyecek? (eski #14) | Sistem fatura/e-Fatura üretmez; Shopier satışlarının muhasebesi Shopier ekosistemindeki entegrasyonlara bırakılır, uydurma bir muhasebe entegrasyonu yazılmaz. | `docs/DECISIONS.md` D034 |

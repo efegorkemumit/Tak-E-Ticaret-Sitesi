@@ -1,4 +1,4 @@
-import { LayoutDashboard, Package, FolderTree, Layers, Shapes, Receipt, type LucideIcon } from "lucide-react"
+import { LayoutDashboard, Package, FolderTree, Layers, Shapes, Receipt, Settings, type LucideIcon } from "lucide-react"
 
 /**
  * Admin sidebar/mobil navigasyonun tek doğruluk kaynağı — hem `AdminSidebar`
@@ -26,12 +26,17 @@ export interface AdminNavGroup {
 /**
  * İkon eşlemesi `docs/DESIGN_DIRECTION.md`nin admin spesifikasyonuyla
  * BİREBİR (Dashboard→`LayoutDashboard`, Ürünler→`Package`, Kategoriler→
- * `FolderTree`, Koleksiyonlar→`Layers`, Siparişler→`Receipt`) — TEK istisna:
- * spec listesinde "Ayarlar→`Settings`" de vardı ama bizim `/admin/settings`
- * diye bir route'umuz YOK (kapsam dışı, bu turda İCAT EDİLMEDİ) ve spec
- * bizim gerçek "Öznitelikler" route'umuzdan hiç bahsetmiyordu (muhtemelen
- * genel bir referans listesiydi) — "Öznitelikler" mevcut `Shapes` ikonunu
- * korudu, "Ayarlar" eklenmedi.
+ * `FolderTree`, Koleksiyonlar→`Layers`, Siparişler→`Receipt`, Ayarlar→
+ * `Settings`). Spec bizim gerçek "Öznitelikler" route'umuzdan hiç
+ * bahsetmiyordu (muhtemelen genel bir referans listesiydi) —
+ * "Öznitelikler" mevcut `Shapes` ikonunu korudu.
+ *
+ * VIDEO 09 — "Ayarlar" ARTIK VAR: `/admin/settings` (havale/EFT bilgileri +
+ * D018 rezervasyon penceresi) bu turda eklendi, dolayısıyla Video 08'deki
+ * "route yok, eklenmedi" notu geçersizdir. "Satış" grubuna DEĞİL ayrı bir
+ * "Sistem" grubuna kondu: ayarlar sayfası siparişlerin değil SİTENİN
+ * yapılandırmasıdır ve ileride buraya eklenecek ayarların çoğu (marka,
+ * kargo) satışla ilgili olmayacak.
  */
 export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
   // DÜZELTME (final inceleme) — "Dashboard" diğer tüm nav öğeleri Türkçeyken
@@ -47,6 +52,7 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
     ],
   },
   { label: "Satış", items: [{ label: "Siparişler", href: "/admin/orders", icon: Receipt }] },
+  { label: "Sistem", items: [{ label: "Ayarlar", href: "/admin/settings", icon: Settings }] },
 ]
 
 export const ADMIN_NAV_ITEMS: AdminNavItem[] = ADMIN_NAV_GROUPS.flatMap((group) => group.items)

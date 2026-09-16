@@ -37,10 +37,28 @@ import "dotenv/config"
  * Kurulum:
  *
  *   npx prisma dev -n commerce-test-db --db-port 51213 --port 51214 -d
- *   TEST_DATABASE_URL="postgres://postgres:postgres@localhost:51213/template1?sslmode=disable" \
- *     npx prisma migrate deploy
+ *
+ * DİKKAT (VIDEO 09'da qa tarafından doğrulandı): `prisma dev`, istenen port
+ * başka bir (belki de eski/askıda kalmış) prisma dev sunucusu tarafından
+ * kullanılıyorsa BAŞKA bir port seçer ve gerçek adresi çıktıya yazar. Bu
+ * yüzden aşağıdaki komutlarda `51213` varsayılmamalı, `prisma dev`'in
+ * YAZDIRDIĞI url kullanılmalıdır (`npx prisma dev ls` de gösterir).
+ *
+ * Migration'ları test veritabanına uygularken `DATABASE_URL` override
+ * EDİLMELİDİR — `TEST_DATABASE_URL` DEĞİL: `prisma migrate deploy`,
+ * bağlantıyı `prisma7.config.ts` üzerinden `DATABASE_URL`'den okur ve
+ * `TEST_DATABASE_URL`'i HİÇ GÖRMEZ. (Bu notun eski hâli `TEST_DATABASE_URL`
+ * diyordu; o komut sessizce GERÇEK geliştirme veritabanına bağlanıyor ve test
+ * veritabanını migrate ETMİYORDU.) `dotenv` mevcut ortam değişkenlerini
+ * ezmediği için komut satırındaki override kazanır:
+ *
+ *   DATABASE_URL="<prisma dev'in yazdırdığı url>" npx prisma migrate deploy
+ *
+ * Testleri çalıştırma (burada yalnızca `TEST_DATABASE_URL` kullanılır —
+ * `DATABASE_URL` override EDİLMEZ):
+ *
  *   ALLOW_DESTRUCTIVE_TEST_DB=1 \
- *     TEST_DATABASE_URL="postgres://postgres:postgres@localhost:51213/template1?sslmode=disable" \
+ *     TEST_DATABASE_URL="<prisma dev'in yazdırdığı url>" \
  *     npx vitest run
  */
 

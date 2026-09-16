@@ -8,7 +8,13 @@ import { prisma } from "../prisma"
 import { requireAdmin } from "../auth"
 import { getAvailableQuantities, isUniqueConstraintViolation } from "../commerce"
 import { slugifyTurkish } from "./slug"
-import { createProductSchema, updateProductSchema, createDescriptiveAttributeSchema } from "./schemas"
+import { validateShopierUrl } from "../shopier/url"
+import {
+  createProductSchema,
+  updateProductSchema,
+  createDescriptiveAttributeSchema,
+  updateProductShopierLinkSchema,
+} from "./schemas"
 import { isForeignKeyViolation, isRecordNotFoundError, genericAdminError } from "./errors"
 import type { ProductStatus } from "../generated/prisma/enums"
 
@@ -88,6 +94,15 @@ export interface AdminProductDetailDto {
   images: AdminProductImageDto[]
   descriptiveAttributes: AdminDescriptiveAttributeDto[]
   variants: AdminVariantDto[]
+  /**
+   * D030 (VIDEO 09) — bu ürünün Shopier kartlı satış kanalındaki karşılığı.
+   * DİKKAT: storefront'un aksine burada HAM DB değeri verilir, doğrulamadan
+   * geçirilmez. Neden: admin bozuk/eski bir değeri GÖREBİLMELİ ki
+   * düzeltebilsin. Müşteriye çıkan değer ayrıca doğrulanır (bkz.
+   * `lib/commerce/catalog.ts` → `resolvePublicShopierUrl`).
+   */
+  shopierProductId: string | null
+  shopierUrl: string | null
   createdAt: string
   updatedAt: string
 }
@@ -169,6 +184,8 @@ async function mapProductToDetailDto(product: AdminProductWithRelations, client:
         })),
       }
     }),
+    shopierProductId: product.shopierProductId,
+    shopierUrl: product.shopierUrl,
     createdAt: product.createdAt.toISOString(),
     updatedAt: product.updatedAt.toISOString(),
   }
@@ -351,6 +368,87 @@ export async function removeDescriptiveAttributeFromProduct(
   } catch (error) {
     if (isRecordNotFoundError(error)) {
       return { success: false, error: { code: "NOT_FOUND", message: "Kayıt bulunamadı." } }
+    }
+    return { success: false, error: genericAdminError() }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// VIDEO 09 / D030 — Shopier bağlantısı
+//
+// Shopier ARTIK checkout içindeki bir ödeme sağlayıcısı DEĞİLDİR; ayrı bir
+// kartlı satış kanalıdır. Burada yapılan tek şey, bizim ürünümüzü işletmenin
+// Shopier'de ZATEN kayıtlı olan satış sayfasına bağlamaktır — Shopier'e
+// hiçbir istek atılmaz, hiçbir Shopier API'si varsayılmaz (D010).
+// ---------------------------------------------------------------------------
+
+export type ProductShopierLinkErrorCode =
+  | "INVALID_INPUT"
+  | "PRODUCT_NOT_FOUND"
+  | "INVALID_SHOPIER_URL"
+  | "SHOPIER_PRODUCT_ALREADY_LINKED"
+  | "UNKNOWN_ERROR"
+
+export type UpdateProductShopierLinkResult =
+  | { success: true; shopierProductId: string | null; shopierUrl: string | null }
+  | { success: false; error: { code: ProductShopierLinkErrorCode; message: string } }
+
+/**
+ * Ürünün Shopier bağlantısını kurar, değiştirir veya kaldırır.
+ *
+ * - Boş `shopierUrl` → bağlantı KALDIRILIR (her iki alan da `null`).
+ * - Dolu `shopierUrl` → `lib/shopier/url.ts` ile doğrulanır; yalnızca
+ *   KANONİK url ve ondan TÜRETİLEN ürün id'si yazılır (client'ın gönderdiği
+ *   ham metin doğrudan DB'ye girmez).
+ *
+ * "Bu Shopier ürünü başka bir ürüne bağlı mı?" kontrolü için ÖNCE SELECT
+ * YAPILMAZ: iki eşzamanlı istek arasında yarış koşulu doğururdu. Bunun
+ * yerine bu projenin kuralı uygulanır — dene, DB'nin `@unique` kısıtından
+ * gelen P2002'yi yakala (bkz. `lib/commerce/errors.ts` →
+ * `isUniqueConstraintViolation`).
+ */
+export async function updateProductShopierLink(
+  rawInput: unknown,
+  client: PrismaClient = prisma
+): Promise<UpdateProductShopierLinkResult> {
+  await requireAdmin(client)
+
+  const parsed = updateProductShopierLinkSchema.safeParse(rawInput)
+  if (!parsed.success) {
+    return { success: false, error: { code: "INVALID_INPUT", message: parsed.error.issues[0]?.message ?? "Geçersiz girdi." } }
+  }
+  const input = parsed.data
+
+  let linkData: { shopierProductId: string | null; shopierUrl: string | null }
+  if (input.shopierUrl.length === 0) {
+    // İki alanı BİRLİKTE temizliyoruz — yalnızca url'i silmek, `@unique`
+    // `shopierProductId` yüzünden o Shopier ürününün başka bir ürüne
+    // bağlanmasını görünmez şekilde engellemeye devam ederdi.
+    linkData = { shopierProductId: null, shopierUrl: null }
+  } else {
+    const validation = validateShopierUrl(input.shopierUrl)
+    if (!validation.ok) {
+      return { success: false, error: { code: "INVALID_SHOPIER_URL", message: validation.message } }
+    }
+    linkData = { shopierProductId: validation.productId, shopierUrl: validation.url }
+  }
+
+  try {
+    const updated = await client.product.update({
+      where: { id: input.productId },
+      data: linkData,
+      select: { shopierProductId: true, shopierUrl: true },
+    })
+    return { success: true, shopierProductId: updated.shopierProductId, shopierUrl: updated.shopierUrl }
+  } catch (error) {
+    if (isUniqueConstraintViolation(error, "shopierProductId")) {
+      return {
+        success: false,
+        error: { code: "SHOPIER_PRODUCT_ALREADY_LINKED", message: "Bu Shopier ürünü başka bir ürüne bağlı." },
+      }
+    }
+    if (isRecordNotFoundError(error)) {
+      return { success: false, error: { code: "PRODUCT_NOT_FOUND", message: "Ürün bulunamadı." } }
     }
     return { success: false, error: genericAdminError() }
   }

@@ -184,6 +184,7 @@ Bir karar burada yer aldığında, aynı konudaki OPEN madde `docs/OPEN_QUESTION
 - **Yeniden değerlendirme koşulu:** D005 değişir ve panele birden fazla kişi farklı yetkilerle erişmesi gerekirse, `AdminUser` modeli rol alanıyla genişletilir — saklama yerinin kendisi (veritabanı) değişmez.
 
 ### D026 — Video 07 admin kapsamı: sipariş durumu ve kargo takibi dahil, ödeme onayı hariç
+> **Güncelleme (VIDEO 09):** Bu kararın "ödeme onayı hariç" sınırı artık geçerli değildir — bkz. **D033**. Karar kaydı geçmiş olarak korunur.
 - **Karar:** Admin panelinin ilk sürümünde sipariş durumu değiştirme (`Order.orderStatus`) ve kargo takip kodu girme yer alacaktır. Ödeme onayı (`Order.paymentStatus`), Shopier entegrasyonu ve Havale/EFT eşleştirme mantığı bu kapsamın dışındadır ve sonraki geliştirme dalgasına bırakılmıştır.
 - **Durum:** Kesinleşti
 - **Neden:** Proje sahibi tarafından doğrudan onaylandı. `docs/PROJECT_BRIEF.md` Bölüm 11 bu iki yeteneği MVP admin kapsamına dahil ediyordu ve şemada `orderStatus` ile `paymentStatus` zaten kasıtlı olarak birbirinden bağımsız alanlardır (bkz. `docs/ARCHITECTURE.md` §3) — dolayısıyla sipariş/kargo yönetimi, ödeme entegrasyonunu beklemek zorunda değildir. Ödeme tarafının ayrı bırakılması D007/D009/D010 ile tutarlıdır.
@@ -210,6 +211,49 @@ Bir karar burada yer aldığında, aynı konudaki OPEN madde `docs/OPEN_QUESTION
 - **Neden:** Proje sahibi tarafından doğrudan onaylandı; sipariş geçmişi `OrderItem` üzerinden varyanta referans verdiği için kalıcı silme geçmiş siparişleri bozma veya kayıt kaybı riski taşır. Veritabanı bu riski kısmen zaten engeller (sipariş geçmişi olan bir varyantın silinmesi kısıtla reddedilir), ancak hiç siparişi olmayan kayıtlar için koruma uygulama katmanında bu kararla sağlanır.
 - **Etkilenen modüller:** Admin ürün/varyant yönetimi, storefront görünürlük mantığı (ARCHIVED zaten müşteriye gösterilmez).
 - **Yeniden değerlendirme koşulu:** Kalıcı bir veri bütünlüğü kararıdır; yeniden değerlendirilmesi beklenmez.
+
+### D030 — Shopier, checkout içindeki bir ödeme sağlayıcısı değil, ayrı bir satış kanalıdır
+- **Karar:** Shopier bizim Cart → Checkout → Order akışımızın içinde bir ödeme yöntemi olarak SUNULMAYACAK. Bunun yerine Shopier, kendi başına duran ayrı bir kartlı satış kanalıdır: PUBLISHED ürünlerimizin Shopier'de birer karşılığı oluşturulur, ürün detay sayfasında "Shopier'den Satın Al" bağlantısı müşteriyi o ürünün Shopier satış sayfasına götürür ve sipariş orada, Shopier'in kendi akışında tamamlanır. Bizim checkout'umuz yalnızca Havale/EFT'ye hizmet eder. Shopier üzerinden verilen bir sipariş bizim `Order` tablomuza YAZILMAZ; iki kanal bilinçli olarak ayrı tutulur.
+- **Durum:** Kesinleşti
+- **Neden:** Proje sahibi tarafından doğrudan onaylandı. D009'un öngördüğü teknik araştırma gerçek Shopier hesabı üzerinde yapıldığında, Shopier'in bize sunduğu doğrulanmış yeteneğin "ürün oluştur + public satış linki al" olduğu görüldü; bizim checkout'umuza gömülebilecek doğrulanmış bir ödeme/webhook entegrasyonu VARSAYILMADI (D010). İki kanalı zorla tek bir `Order` tablosunda birleştirmek, doğrulanmamış bir eşleştirme mekanizması uydurmayı gerektirirdi.
+- **Etkilenen modüller:** Checkout şeması (`paymentMethod` artık yalnızca BANK_TRANSFER kabul eder), storefront ürün detayı (CTA), `Product` şeması (`shopierProductId`/`shopierUrl`), admin ürün düzenleme, ödeme modülü.
+- **Not (geriye uyumluluk):** Prisma `PaymentMethod` enum'undaki `SHOPIER` değeri KALDIRILMAZ — geçmiş `Order` kayıtları ve migration geçmişi bozulmaz. Yalnızca yeni checkout artık bu değerle sipariş oluşturmaz.
+- **Yeniden değerlendirme koşulu:** Shopier ileride doğrulanabilir bir API/webhook entegrasyonu sunar ve iki kanalın tek sipariş havuzunda birleşmesi işletme açısından gerekli hâle gelirse (D010 gereği yalnızca gerçek doğrulama sonrası).
+
+### D031 — Sipariş sorgulamada ek doğrulama alanı: e-posta
+- **Karar:** Public sipariş sorgulama ekranı, sipariş numarasına ek olarak müşterinin sipariş sırasında girdiği e-posta adresini ister; sipariş detayı yalnızca ikisi birlikte doğrulanırsa gösterilir.
+- **Durum:** Kesinleşti
+- **Neden:** D015 ek bir doğrulama alanının gerekliliğini zaten karara bağlamıştı, açık olan yalnızca hangi alanın kullanılacağıydı (`docs/OPEN_QUESTIONS.md` #12). E-posta, checkout formunda zaten zorunlu bir alandır ve müşterinin elinde her zaman bulunur; telefon numarası biçim varyasyonu (başında 0, +90, boşluklar) nedeniyle eşleştirmesi kırılgandır. Bu soru artık KAPANMIŞTIR.
+- **Etkilenen modüller:** `/siparis-sorgula` ekranı, `lib/commerce/order-lookup.ts`.
+- **Ek güvenlik kuralı (kararın ayrılmaz parçası):** Yanlış sipariş numarası ile yanlış e-posta AYNI jenerik hatayı döndürür — hangi alanın yanlış olduğu asla sızdırılmaz (account enumeration). Sorgulama sonucu ad/adres/telefon/sipariş kalemi gibi PII TAŞIMAZ; yalnızca sipariş numarası, sipariş durumu, ödeme durumu/yöntemi, tutar ve (havale ise) banka bilgisi gösterilir.
+- **Yeniden değerlendirme koşulu:** Kalıcı bir karardır.
+
+### D032 — İşletme ayarları tek satırlık bir `SiteSettings` kaydında tutulur
+- **Karar:** Banka adı, hesap sahibi, IBAN, havale açıklama şablonu ve rezervasyon bekleme süresi (saat) veritabanında tek satırlık (singleton) bir `SiteSettings` kaydında tutulur ve `/admin/settings` ekranından yönetilir. Bu değerler koda veya ortam değişkenine GÖMÜLMEZ.
+- **Durum:** Kesinleşti
+- **Neden:** D018 rezervasyon süresinin "panelden değiştirilebilir" olacağını zaten öngörüyordu; havale akışının gerçek banka bilgisi de aynı gerekçeyle (işletme sahibi geliştirici müdahalesi olmadan değiştirebilmeli — D025'teki aynı ilke) veritabanına ait bir veridir. Tek satır olması, "hangi ayar kaydı geçerli?" sorusunu tamamen ortadan kaldırır ve güncellemeyi doğal olarak idempotent kılar.
+- **Etkilenen modüller:** `SiteSettings` şeması, `lib/settings/`, `/admin/settings`, sipariş başarı ekranı, sipariş sorgulama, `createOrder` (rezervasyon penceresi), 24 saat zaman aşımı job'ı.
+- **Güvenlik kuralı:** IBAN dâhil tüm ayar mutasyonları sunucu tarafında `requireAdmin()` gerektirir ve client'tan gelen değer güvenilir kabul edilmez; IBAN sunucuda normalize edilip TR IBAN formatı + mod-97 checksum ile doğrulanır. `docs/OPEN_QUESTIONS.md` #6/#7 (kargo ücreti / ücretsiz kargo sınırı) bu kararla KAPANMAZ — bu alanlar bilinçli olarak eklenmedi, kargo ücretlendirmesi hâlâ MVP dışıdır.
+- **Yeniden değerlendirme koşulu:** Ayar sayısı bir ekrana sığmayacak kadar artarsa gruplanabilir; saklama biçimi (tek satır) kalıcıdır.
+
+### D033 — Havale ödemesinin onay/red akışı admin panelindedir (D026'nın kapsamı genişletildi)
+- **Karar:** Admin, Havale/EFT siparişlerinde `Order.paymentStatus`'ü panelden yönetebilir: "Ödemeyi Onayla" (PENDING → CONFIRMED) ve "Ödemeyi Reddet" (PENDING → FAILED) aksiyonları eklenmiştir. Onay, ilgili ACTIVE rezervasyonları CONSUMED yapar ve `Variant.stockQuantity`'yi satılan adet kadar düşürür; red, rezervasyonları RELEASED yapar, siparişi CANCELLED'a çeker ve fiziksel stoğa DOKUNMAZ. Her iki işlem de tek bir transaction içinde ve idempotenttir.
+- **Durum:** Kesinleşti — D026'nın "ödeme onayı hariç" sınırını kaldırır (D026 "Değişti → bkz. D033" olarak okunmalıdır; geçmiş kaydı silinmez).
+- **Neden:** D007 havale ödemesinin admin tarafından manuel onaylanacağını zaten kesinleştirmişti; D026 yalnızca bu yeteneğin hangi geliştirme dalgasına düşeceğini belirliyordu, nihai kapsamı daraltmıyordu (D026'nın kendi metni bunu açıkça söylüyor). Bu dalgada sıra buraya geldi.
+- **Etkilenen modüller:** `lib/admin/payments.ts`, admin sipariş listesi (havale kuyruğu filtresi), admin sipariş detayı, stok/rezervasyon mantığı.
+- **Değişmez (invariant):** `availableQuantity = stockQuantity − Σ(ACTIVE rezervasyon)` formülü gereği ödeme onayı `availableQuantity`'yi DEĞİŞTİRMEZ (stok düşer, aktif rezervasyon da aynı miktarda azalır) — yalnızca rezervasyon gerçek satışa dönüşür. İki adımın aynı transaction'da olması bu değişmezin tek garantisidir.
+- **Ek kural (onay sonrası iptal — güvenlik incelemesinde netleştirildi):** Ödemesi `CONFIRMED` olan bir sipariş daha sonra sipariş durumu üzerinden `CANCELLED` yapılırsa **fiziksel stok GERİ EKLENMEZ**: rezervasyonlar zaten `CONSUMED` olduğu için serbest bırakılacak bir şey kalmamıştır ve satış gerçekleşmiş sayılır. Bu bilinçlidir — iade/geri alma (refund) akışı MVP kapsamı dışındadır (D014 ile tutarlı). Gerekirse admin varyant stoğunu elle düzeltir; `rejectOrderPayment`'ın hata mesajı bu sonucu artık açıkça söyler, admin'i stoğun kendiliğinden döneceği sanısına sürüklemez.
+- **Ek kural (zaman aşımının sınırı):** 24 saat zaman aşımı job'ı YALNIZCA `orderStatus = PAYMENT_PENDING` siparişleri iptal eder. Admin siparişi `PREPARING`/`SHIPPED`/`DELIVERED`'a taşımışsa, ödeme hâlâ `PENDING` olsa bile otomatik iptal EDİLMEZ — bilinçli bir işletme kararının üzerine otomatik bir job yazamaz. Takas: böyle bir siparişin `ACTIVE` rezervasyonları otomatik serbest kalmaz, admin ödemeyi onaylayana/reddedene ya da siparişi iptal edene kadar stoğu tutmaya devam eder (bkz. `lib/commerce/expire-orders.ts` içindeki gerekçe).
+- **Ek kural:** Ödeme onayı `Order.orderStatus`'ü OTOMATİK OLARAK `PREPARING` yapmaz — `paymentStatus` ve `orderStatus` `docs/ARCHITECTURE.md` §3 gereği ayrı kavramlardır ve siparişi hazırlamaya başlamak ayrı bir işletme kararıdır.
+- **Yeniden değerlendirme koşulu:** Sipariş hacmi manuel onayı sürdürülemez kılarsa (D007'deki aynı koşul).
+
+### D034 — Muhasebe/e-Fatura bu projede üretilmez, Shopier ekosistemine bırakılır
+- **Karar:** Bu proje fatura/e-Fatura üretmez ve hiçbir muhasebe servisine (Luca vb.) entegrasyon yazmaz. Shopier kanalından yapılan satışların muhasebe/e-Fatura tarafı, Shopier'in kendi desteklediği entegrasyonlara bırakılır. Havale siparişlerinin otomatik olarak faturaya gittiği İDDİA EDİLMEZ.
+- **Durum:** Kesinleşti
+- **Neden:** Proje sahibi tarafından doğrudan onaylandı. Bu, `docs/OPEN_QUESTIONS.md` #14'ün geçici varsayımını ("MVP'de sistem fatura üretmez") kesin karara dönüştürür. Doğrulanmamış bir muhasebe entegrasyonu uydurmak, D010'un Shopier için koyduğu ilkenin aynısını başka bir sağlayıcı için ihlal ederdi.
+- **Gözlem (doğrulanmış, VIDEO 09):** Açık Shopier hesabında `Ek Özellikler > Uygulamalar` listesi BOŞTUR — kurulu hiçbir muhasebe/e-Fatura entegrasyonu yoktur. Bu tur içinde yeni/ücretli hiçbir uygulama kurulmamıştır.
+- **Etkilenen modüller:** Yok (bilinçli bir kapsam sınırıdır).
+- **Yeniden değerlendirme koşulu:** İşletme gerçek bir e-Fatura yükümlülüğü/entegrasyon ihtiyacı bildirirse, ayrı bir karar ve ayrı bir geliştirme turu gerekir.
 
 ---
 
@@ -246,3 +290,8 @@ Bir karar burada yer aldığında, aynı konudaki OPEN madde `docs/OPEN_QUESTION
 | D027 | Variant SKU otomatik üretilir, admin değiştirebilir | Kesinleşti |
 | D028 | Öznitelik tipi ve değeri admin tarafından yönetilebilir | Kesinleşti |
 | D029 | Hard delete yok; yaşam döngüsü DRAFT/PUBLISHED/ARCHIVED ile | Kesinleşti |
+| D030 | Shopier ayrı satış kanalı; checkout yalnızca Havale/EFT | Kesinleşti |
+| D031 | Sipariş sorgulama ek doğrulaması: e-posta | Kesinleşti |
+| D032 | İşletme ayarları tek satırlık SiteSettings kaydında | Kesinleşti |
+| D033 | Havale ödeme onay/red admin panelinde (D026 genişletildi) | Kesinleşti |
+| D034 | Muhasebe/e-Fatura yok; Shopier ekosistemine bırakıldı | Kesinleşti |

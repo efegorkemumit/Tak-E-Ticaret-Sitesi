@@ -63,7 +63,8 @@ export interface AdminOrderDetailDto {
   shippedAt: string | null
 }
 
-const ORDER_DETAIL_INCLUDE = { items: true } satisfies Prisma.OrderInclude
+/** `export` — `./payments.ts` aynı detay şeklini yeniden tanımlamak yerine bunu kullanır. */
+export const ORDER_DETAIL_INCLUDE = { items: true } satisfies Prisma.OrderInclude
 type OrderWithItems = Prisma.OrderGetPayload<{ include: typeof ORDER_DETAIL_INCLUDE }>
 
 function mapOrderToListItemDto(order: OrderModel): AdminOrderListItemDto {
@@ -79,7 +80,8 @@ function mapOrderToListItemDto(order: OrderModel): AdminOrderListItemDto {
   }
 }
 
-function mapOrderToDetailDto(order: OrderWithItems): AdminOrderDetailDto {
+/** `export` — `./payments.ts` DTO map'lemesinin ikinci bir kopyasını YAZMAZ, bunu çağırır. */
+export function mapOrderToDetailDto(order: OrderWithItems): AdminOrderDetailDto {
   return {
     id: order.id,
     orderNumber: order.orderNumber,
@@ -127,6 +129,9 @@ export async function listOrdersForAdmin(rawFilter: unknown = {}, client: Prisma
       ...(filter.orderNumber ? { orderNumber: { contains: filter.orderNumber, mode: "insensitive" } } : {}),
       ...(filter.orderStatus ? { orderStatus: filter.orderStatus } : {}),
       ...(filter.paymentMethod ? { paymentMethod: filter.paymentMethod } : {}),
+      // VIDEO 09 — havale kuyruğu: BANK_TRANSFER + PENDING birlikte
+      // filtrelenerek D007'nin manuel onay çalışma listesi elde edilir.
+      ...(filter.paymentStatus ? { paymentStatus: filter.paymentStatus } : {}),
     },
     orderBy: { createdAt: "desc" },
   })

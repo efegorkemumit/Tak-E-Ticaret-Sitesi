@@ -12,16 +12,19 @@ import {
   DataTableCell,
 } from "@/components/admin/data-table"
 import { OrderStatusTransitionForm } from "@/components/admin/order-status-transition-form"
+import { OrderPaymentActions } from "@/components/admin/order-payment-actions"
 import { OrderStatusBadge, PaymentStatusBadge } from "@/components/admin/status-badge"
 import { getPaymentMethodLabel } from "@/components/admin/status-labels"
 import { formatAdminDateTime } from "@/components/admin/format"
-import { updateOrderStatusAction } from "../actions"
+import { updateOrderStatusAction, confirmOrderPaymentAction, rejectOrderPaymentAction } from "../actions"
 
 export const dynamic = "force-dynamic"
 
 /**
- * D026 sert kuralı: `paymentStatus` burada YALNIZCA GÖRÜNTÜLENİR (`Ödeme`
- * bölümü) — hiçbir düzenleme kontrolü yok.
+ * VIDEO 09 — D026 GEVŞETİLDİ: `paymentStatus` artık salt okunur DEĞİL;
+ * havale/EFT siparişlerinde "Ödeme" kartından onaylanıp reddedilebilir
+ * (D007 — manuel onay). Sipariş durumu (`orderStatus`) ise ayrı bir alandır
+ * ve ödeme onayıyla otomatik değişmez.
  *
  * VIDEO 08 STEP 3 (part 2) — spec'in istediği gruplama BİREBİR: Sipariş /
  * Müşteri / Teslimat / Ürünler / Ödeme / Kargo, her biri kendi kartı.
@@ -113,7 +116,10 @@ export default async function AdminOrderDetailPage({ params }: { params: Promise
       </AdminFormSection>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <AdminFormSection title="Ödeme" description="Salt okunur — bu panelden değiştirilemez (D026), yalnızca payments modülü günceller.">
+        <AdminFormSection
+          title="Ödeme"
+          description="Havale/EFT ödemeleri bu karttan manuel olarak onaylanır veya reddedilir (D007). Sipariş durumu ayrı bir alandır ve ödeme onayıyla otomatik değişmez."
+        >
           <dl className="flex flex-col gap-1.5 text-sm">
             <div className="flex justify-between gap-4">
               <dt className="text-muted-foreground">Yöntem</dt>
@@ -126,6 +132,14 @@ export default async function AdminOrderDetailPage({ params }: { params: Promise
               </dd>
             </div>
           </dl>
+
+          <OrderPaymentActions
+            orderId={order.id}
+            paymentMethod={order.paymentMethod}
+            paymentStatus={order.paymentStatus}
+            confirmAction={confirmOrderPaymentAction}
+            rejectAction={rejectOrderPaymentAction}
+          />
         </AdminFormSection>
 
         <AdminFormSection title="Kargo">

@@ -56,9 +56,22 @@ export const checkoutInputSchema = z.object({
     country: z.literal("TR", { message: "Şu anda yalnızca Türkiye'ye gönderim yapılmaktadır." }),
   }),
   giftPackagingSelected: z.boolean().optional().default(false),
-  // D006 — yalnızca bu iki yöntem, yeni bir yöntem eklenmedi.
-  paymentMethod: z.enum([PaymentMethod.SHOPIER, PaymentMethod.BANK_TRANSFER], {
-    message: "Geçerli bir ödeme yöntemi seçin.",
+  // D030 — bu checkout akışı YALNIZCA Havale/EFT'e hizmet eder.
+  //
+  // D006'nın iki ödeme yöntemi (Shopier + Havale/EFT) hâlâ geçerlidir; ama
+  // D030 ile Shopier artık bizim checkout'umuzun İÇİNDEKİ bir ödeme
+  // sağlayıcısı DEĞİL, AYRI bir kartlı satış kanalıdır (ürün detayındaki
+  // "Shopier'den Satın Al" CTA'sı müşteriyi Shopier'in kendi satış
+  // sayfasına götürür — bkz. `lib/shopier/url.ts`). Shopier'den geçen bir
+  // satışın bizim Order tablomuzda karşılığı OLUŞMAZ.
+  //
+  // Bu yüzden şema burada tek bir değeri kabul eder. `PaymentMethod` Prisma
+  // enum'unda `SHOPIER` GERİYE UYUMLULUK İÇİN DURUR (D030 öncesinde
+  // oluşturulmuş Order kayıtları ve migration geçmişi bozulmasın diye) —
+  // ama yeni bir checkout isteği artık asla SHOPIER bir sipariş üretemez:
+  // client ne gönderirse göndersin, bu literal doğrulamasını geçemez.
+  paymentMethod: z.literal(PaymentMethod.BANK_TRANSFER, {
+    message: "Şu anda yalnızca Havale / EFT ile ödeme yapılabilmektedir.",
   }),
 })
 

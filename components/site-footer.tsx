@@ -66,6 +66,13 @@ async function SiteFooter() {
 
         <div className="flex flex-col gap-2">
           <p className="text-sm font-medium text-foreground">Kurumsal</p>
+          {/* VIDEO 09 — footer'daki tek GERÇEK (yayında olan) kurumsal/müşteri
+              hizmeti linki. Üyelik olmadığı için (D004) müşterinin siparişine
+              tek kalıcı erişim yolu budur; bu yüzden sitenin her sayfasından
+              ulaşılabilir olmalı. */}
+          <Link href="/siparis-sorgula" className="text-sm text-muted-foreground hover:text-foreground">
+            Sipariş Sorgula
+          </Link>
           <p className="text-metadata text-muted-foreground/70 lg:text-metadata-lg">{LEGAL_PAGES_PENDING.join(", ")} yakında eklenecektir.</p>
         </div>
       </Container>

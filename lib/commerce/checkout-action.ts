@@ -32,11 +32,15 @@
  * taşır). Storefront şu an yalnızca `error.message`'ı gösterdiği için bu
  * granülerlik farkı UI'ı etkilemiyor.
  *
- * ÖDEME SINIRI (Section 14): `paymentMethod` yalnızca Order'a kaydedilir.
- * SHOPIER seçilse bile burada sahte bir redirect/URL ÜRETİLMEZ; BANK_TRANSFER
- * seçilse bile sahte bir onay YAPILMAZ. `paymentStatus` her zaman `PENDING`
- * döner — bu `createOrder`'ın zaten sahip olduğu davranıştır, burada
- * değiştirilmez/taklit edilmez.
+ * ÖDEME SINIRI (VIDEO 09 / D030 sonrası güncellendi): `paymentMethod` artık
+ * yalnızca `BANK_TRANSFER` olabilir — `checkoutInputSchema` başka bir değeri
+ * kabul etmez, dolayısıyla bu Server Action bir SHOPIER siparişi ASLA
+ * oluşturamaz. Shopier bu akışın içinde bir adım DEĞİLDİR; ayrı bir satış
+ * kanalıdır ve ürün detayındaki kendi CTA'sı üzerinden çalışır. Burada sahte
+ * bir redirect/URL ÜRETİLMEZ ve havale için sahte bir onay YAPILMAZ:
+ * `paymentStatus` her zaman `PENDING` döner (bu, `createOrder`'ın zaten sahip
+ * olduğu davranıştır — burada değiştirilmez/taklit edilmez). Ödemeyi
+ * onaylayan/reddeden tek yer admin panelidir (D033).
  *
  * NEDEN LOG YOK: Bu dosyada bilinçli olarak hiçbir `console.*` çağrısı
  * bulunmuyor — `checkoutInputSchema`'nın doğrulama hataları (ZodError) ham

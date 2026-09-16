@@ -36,7 +36,7 @@ function Badge({
   token: BadgeToken
   variant: BadgeVariant
   icon?: LucideIcon
-  /** `false` — PaymentStatus (D026): tıklanabilir/etkileşimli HİSSİ verilmez. */
+  /** `false` — PaymentStatus rozeti: tıklanabilir/etkileşimli HİSSİ verilmez. */
   interactive?: boolean
 }) {
   return (
@@ -76,7 +76,13 @@ const PAYMENT_STATUS_BADGE: Record<string, BadgeToken> = {
   FAILED: "danger",
 }
 
-/** D026 — bu dalgada salt okunur; OrderStatus'un dolu pillerinden kasıtlı olarak daha "sessiz" (outline, ikonsuz, etkileşimsiz). */
+/**
+ * OrderStatus'un dolu pillerinden kasıtlı olarak daha "sessiz" (outline,
+ * ikonsuz, etkileşimsiz). VIDEO 09'da D026 gevşetilip ödeme onayı panele
+ * eklendikten sonra da rozetin KENDİSİ salt gösterimdir — onay/red ayrı
+ * butonlarla yapılır (`order-payment-actions.tsx`), rozet tıklanabilir bir
+ * kontrol değildir.
+ */
 function PaymentStatusBadge({ status }: { status: string }) {
   const token = PAYMENT_STATUS_BADGE[status] ?? "muted"
   return <Badge label={getAdminPaymentStatusLabel(status)} token={token} variant="outline" interactive={false} />
@@ -93,4 +99,11 @@ function ProductStatusBadge({ status }: { status: string }) {
   return <Badge label={getProductStatusLabel(status)} token={config.token} variant="solid" icon={config.icon} />
 }
 
-export { OrderStatusBadge, PaymentStatusBadge, ProductStatusBadge }
+/**
+ * VIDEO 09 — `Badge` artık DIŞA AÇIK. NEDEN: Shopier bağlantı durumu
+ * ("Bağlı" / "Bağlı değil") bir enum durumu değil, bu yüzden dördüncü bir
+ * `*StatusBadge` sarmalayıcısı anlamlı olmazdı; ama kendi rozetini sıfırdan
+ * yazmak YENİ renk/gölge icat etmek demekti. Mevcut token tablosunu paylaşan
+ * bu primitive'i açmak, rozet dilini tek kaynakta tutar.
+ */
+export { Badge, OrderStatusBadge, PaymentStatusBadge, ProductStatusBadge }
